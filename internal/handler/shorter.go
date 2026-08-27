@@ -39,8 +39,8 @@ func (s *Server) DoShortUrl(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shortUrl := s.service.DoShortUrl(url)
+	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte(shortUrl))
-
 }
 
 func (s *Server) GetUrl(w http.ResponseWriter, r *http.Request) {
