@@ -5,17 +5,19 @@ import (
 	"encoding/base64"
 	"fmt"
 
+	"github.com/presswintox/practicum-shortener/internal/config"
 	"github.com/presswintox/practicum-shortener/internal/repository"
 )
 
 const length int = 8
 
 type ShorterService struct {
-	db repository.ShorterRepository
+	db  repository.ShorterRepository
+	cfg *config.Config
 }
 
-func NewShorterService(db repository.ShorterRepository) *ShorterService {
-	return &ShorterService{db: db}
+func NewShorterService(db repository.ShorterRepository, cfg *config.Config) *ShorterService {
+	return &ShorterService{db: db, cfg: cfg}
 }
 
 func (s *ShorterService) DoShortUrl(url string) (string, string, error) {
@@ -23,7 +25,7 @@ func (s *ShorterService) DoShortUrl(url string) (string, string, error) {
 	if err := s.db.Save(urlHash, url); err != nil {
 		return "", "", err
 	}
-	return urlHash, fmt.Sprintf("http://localhost:8080/%s", urlHash), nil
+	return urlHash, fmt.Sprintf("%s/%s", s.cfg.ShortUrlAddr, urlHash), nil
 }
 
 func (s *ShorterService) GetUrl(shortUrl string) (string, error) {

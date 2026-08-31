@@ -3,14 +3,20 @@ package service
 import (
 	"testing"
 
+	"github.com/presswintox/practicum-shortener/internal/config"
 	"github.com/presswintox/practicum-shortener/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+var cfg = &config.Config{
+	Port:         "8080",
+	ShortUrlAddr: "http://localhost:8080",
+}
+
 func TestShorterService_DoShortUrl(t *testing.T) {
 
-	s := NewShorterService(repository.NewMemoryRepository())
+	s := NewShorterService(repository.NewMemoryRepository(), cfg)
 
 	tests := []struct {
 		name string
@@ -55,7 +61,7 @@ func TestShortenURL(t *testing.T) {
 }
 
 func TestShorterService_GetUrl(t *testing.T) {
-	s := NewShorterService(repository.NewMemoryRepository())
+	s := NewShorterService(repository.NewMemoryRepository(), cfg)
 
 	tests := []struct {
 		name string

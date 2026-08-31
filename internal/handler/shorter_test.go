@@ -8,14 +8,21 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v5"
+	"github.com/presswintox/practicum-shortener/internal/config"
 	"github.com/presswintox/practicum-shortener/internal/repository"
 	"github.com/presswintox/practicum-shortener/internal/service"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+var cfg = &config.Config{
+	Port:         "8080",
+	ShortUrlAddr: "http://localhost:8080",
+}
+
 func TestServer_DoShortUrlHandler(t *testing.T) {
-	shorterService := service.NewShorterService(repository.NewMemoryRepository())
+
+	shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg)
 	server := NewServer(shorterService)
 	type want struct {
 		code        int
@@ -61,7 +68,7 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 }
 
 func TestServer_GetUrlHandler(t *testing.T) {
-	shorterService := service.NewShorterService(repository.NewMemoryRepository())
+	shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg)
 	server := NewServer(shorterService)
 
 	originalUrl := "http://google.com"
