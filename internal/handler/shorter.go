@@ -3,6 +3,8 @@ package handler
 import (
 	"io"
 	"net/http"
+
+	"github.com/labstack/echo/v5"
 )
 
 type ShorterService interface {
@@ -18,48 +20,42 @@ func NewServer(s ShorterService) *Server {
 	return &Server{service: s}
 }
 
-func (s *Server) DoShortUrlHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) DoShortUrlHandler(c *echo.Context) error {
+	r := c.Request()
 	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+		return c.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
 	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, "не удалось прочитать тело запроса", http.StatusBadRequest)
-		return
+		return c.String(http.StatusBadRequest, "Не удалось прочитать тело запроса")
 	}
 	defer r.Body.Close()
 
 	url := string(body)
 	if url == "" {
-		http.Error(w, "пустой URL", http.StatusBadRequest)
-		return
+		return c.String(http.StatusBadRequest, "Пустой URL")
 	}
 
 	_, shortUrl, err := s.service.DoShortUrl(url)
 	if err != nil {
-		http.Error(w, "не удалось сохранить URL", http.StatusInternalServerError)
-		return
+		return c.String(http.StatusInternalServerError, "Не удалось сохранить URL")
 	}
 
-	w.Header().Set("Content-Type", "text/plain")
-	w.WriteHeader(http.StatusCreated)
-
-	w.Write([]byte(shortUrl))
+	return c.String(http.StatusCreated, shortUrl)
 }
 
-func (s *Server) GetUrlHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetUrlHandler(c *echo.Context) error {
+	r := c.Request()
 	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
+		return c.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
 	}
-	urlId := r.PathValue("id")
-	url, err := s.service.GetUrl(urlId)
+
+	id := c.Param("id")
+	url, err := s.service.GetUrl(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return c.String(http.StatusBadRequest, err.Error())
 	}
-	w.Header().Set("Location", url)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+
+	return c.Redirect(http.StatusTemporaryRedirect, url)
 }

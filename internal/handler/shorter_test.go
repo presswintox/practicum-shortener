@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/labstack/echo/v5"
 	"github.com/presswintox/practicum-shortener/internal/repository"
 	"github.com/presswintox/practicum-shortener/internal/service"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 			url:  "http://google.com",
 			want: want{
 				code:        http.StatusCreated,
-				contentType: "text/plain",
+				contentType: "text/plain; charset=UTF-8",
 				response:    "http://localhost:8080/x7kg9X5V",
 			},
 			request: "/",
@@ -40,10 +41,11 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			e := echo.New()
 			request := httptest.NewRequest(http.MethodPost, tt.request, strings.NewReader(tt.url))
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(server.DoShortUrlHandler)
-			h(w, request)
+			c := e.NewContext(request, w)
+			assert.NoError(t, server.DoShortUrlHandler(c))
 			result := w.Result()
 
 			assert.Equal(t, tt.want.code, result.StatusCode)
@@ -94,11 +96,13 @@ func TestServer_GetUrlHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "/"+tt.id, nil)
-			request.SetPathValue("id", tt.id)
+			e := echo.New()
+			request := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
-			h := http.HandlerFunc(server.GetUrlHandler)
-			h(w, request)
+			c := e.NewContext(request, w)
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.id}})
+			assert.NoError(t, server.GetUrlHandler(c))
+
 			result := w.Result()
 			require.NoError(t, result.Body.Close())
 
