@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/presswintox/practicum-shortener/internal/handler"
+	"github.com/presswintox/practicum-shortener/internal/repository"
 	"github.com/presswintox/practicum-shortener/internal/service"
 )
 
@@ -15,11 +16,12 @@ func main() {
 
 func run() error {
 
-	shortService := service.NewShorterService()
+	db := repository.NewMemoryRepository()
+	shortService := service.NewShorterService(db)
 	server := handler.NewServer(shortService)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", server.DoShortUrl)
-	mux.HandleFunc("/{id}", server.GetUrl)
+	mux.HandleFunc("/", server.DoShortUrlHandler)
+	mux.HandleFunc("/{id}", server.GetUrlHandler)
 	return http.ListenAndServe(`:8080`, mux)
 }

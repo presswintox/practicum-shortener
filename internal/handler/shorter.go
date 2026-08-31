@@ -6,7 +6,7 @@ import (
 )
 
 type ShorterService interface {
-	DoShortUrl(url string) string
+	DoShortUrl(url string) (string, string, error)
 	GetUrl(shortUrl string) (string, error)
 }
 
@@ -18,9 +18,8 @@ func NewServer(s ShorterService) *Server {
 	return &Server{service: s}
 }
 
-func (s *Server) DoShortUrl(w http.ResponseWriter, r *http.Request) {
+func (s *Server) DoShortUrlHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		// разрешаем только POST-запросы
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
@@ -38,12 +37,19 @@ func (s *Server) DoShortUrl(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	shortUrl := s.service.DoShortUrl(url)
+	_, shortUrl, err := s.service.DoShortUrl(url)
+	if err != nil {
+		http.Error(w, "не удалось сохранить URL", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusCreated)
+
 	w.Write([]byte(shortUrl))
 }
 
-func (s *Server) GetUrl(w http.ResponseWriter, r *http.Request) {
+func (s *Server) GetUrlHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

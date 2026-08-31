@@ -3,39 +3,34 @@ package service
 import (
 	"crypto/md5"
 	"encoding/base64"
-	"errors"
 	"fmt"
-	"sync"
+
+	"github.com/presswintox/practicum-shortener/internal/repository"
 )
 
 const length int = 8
 
 type ShorterService struct {
-	mu sync.Mutex
-	db map[string]string
+	db repository.ShorterRepository
 }
 
-func NewShorterService() *ShorterService {
-	return &ShorterService{db: make(map[string]string)}
+func NewShorterService(db repository.ShorterRepository) *ShorterService {
+	return &ShorterService{db: db}
 }
 
-func (s *ShorterService) DoShortUrl(url string) string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	shortUrl := ShortenURL(url)
-	s.db[shortUrl] = url
-	return fmt.Sprintf("http://localhost:8080/%s", shortUrl)
+func (s *ShorterService) DoShortUrl(url string) (string, string, error) {
+	urlHash := URLHash(url)
+	if err := s.db.Save(urlHash, url); err != nil {
+		return "", "", err
+	}
+	return urlHash, fmt.Sprintf("http://localhost:8080/%s", urlHash), nil
 }
 
 func (s *ShorterService) GetUrl(shortUrl string) (string, error) {
-	if url, ok := s.db[shortUrl]; ok {
-		return url, nil
-	}
-	return "", errors.New("shorter url not found")
+	return s.db.Get(shortUrl)
 }
 
-func ShortenURL(longURL string) string {
+func URLHash(longURL string) string {
 	urlLength := length
 	hash := md5.Sum([]byte(longURL))
 	// base64 URL-safe без паддинга, чтобы не было / + =
