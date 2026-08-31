@@ -20,7 +20,7 @@ func TestNewConfig(t *testing.T) {
 			args: nil,
 			want: &Config{
 				Port:         ":8080",
-				ShortUrlAddr: "http://localhost:8000",
+				ShortUrlAddr: "http://localhost:8080",
 			},
 		},
 		{
@@ -44,7 +44,7 @@ func TestNewConfig(t *testing.T) {
 			args: []string{"-a=:3000"},
 			want: &Config{
 				Port:         ":3000",
-				ShortUrlAddr: "http://localhost:8000",
+				ShortUrlAddr: "http://localhost:8080",
 			},
 		},
 		{
