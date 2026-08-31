@@ -11,16 +11,15 @@ type ShorterService interface {
 	DoShortUrl(url string) (string, string, error)
 	GetUrl(shortUrl string) (string, error)
 }
-
-type Server struct {
+type ShorterApi struct {
 	service ShorterService
 }
 
-func NewServer(s ShorterService) *Server {
-	return &Server{service: s}
+func NewShorterApi(service ShorterService) *ShorterApi {
+	return &ShorterApi{service: service}
 }
 
-func (s *Server) DoShortUrlHandler(c *echo.Context) error {
+func (s *ShorterApi) DoShortUrlHandler(c *echo.Context) error {
 	r := c.Request()
 	if r.Method != http.MethodPost {
 		return c.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
@@ -45,7 +44,7 @@ func (s *Server) DoShortUrlHandler(c *echo.Context) error {
 	return c.String(http.StatusCreated, shortUrl)
 }
 
-func (s *Server) GetUrlHandler(c *echo.Context) error {
+func (s *ShorterApi) GetUrlHandler(c *echo.Context) error {
 	r := c.Request()
 	if r.Method != http.MethodGet {
 		return c.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))

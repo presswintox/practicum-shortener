@@ -1,30 +1,27 @@
 package main
 
 import (
-	"github.com/labstack/echo/v5"
 	"github.com/presswintox/practicum-shortener/internal/config"
 	"github.com/presswintox/practicum-shortener/internal/handler"
 	"github.com/presswintox/practicum-shortener/internal/repository"
+	"github.com/presswintox/practicum-shortener/internal/server"
 	"github.com/presswintox/practicum-shortener/internal/service"
 )
 
 func main() {
-	cfg := config.NewConfig()
-
-	if err := run(cfg); err != nil {
+	if err := run(); err != nil {
 		panic(err)
 	}
 }
 
-func run(cfg *config.Config) error {
-
+// run init all dependencies and run server
+func run() error {
+	cfg := config.NewConfig()
 	db := repository.NewMemoryRepository()
 	shortService := service.NewShorterService(db, cfg)
-	server := handler.NewServer(shortService)
+	shorterApi := handler.NewShorterApi(shortService)
 
-	e := echo.New()
-	e.GET("/:id", server.GetUrlHandler)
-	e.POST("/", server.DoShortUrlHandler)
+	srv := server.NewServer(cfg.Port, shorterApi)
 
-	return e.Start(cfg.Port)
+	return srv.Start()
 }

@@ -21,9 +21,9 @@ var cfg = &config.Config{
 }
 
 func TestServer_DoShortUrlHandler(t *testing.T) {
-
 	shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg)
-	server := NewServer(shorterService)
+	api := NewShorterApi(shorterService)
+
 	type want struct {
 		code        int
 		contentType string
@@ -52,7 +52,7 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 			request := httptest.NewRequest(http.MethodPost, tt.request, strings.NewReader(tt.url))
 			w := httptest.NewRecorder()
 			c := e.NewContext(request, w)
-			assert.NoError(t, server.DoShortUrlHandler(c))
+			assert.NoError(t, api.DoShortUrlHandler(c))
 			result := w.Result()
 
 			assert.Equal(t, tt.want.code, result.StatusCode)
@@ -69,8 +69,8 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 
 func TestServer_GetUrlHandler(t *testing.T) {
 	shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg)
-	server := NewServer(shorterService)
 
+	api := NewShorterApi(shorterService)
 	originalUrl := "http://google.com"
 	shortId, _, err := shorterService.DoShortUrl(originalUrl)
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestServer_GetUrlHandler(t *testing.T) {
 			w := httptest.NewRecorder()
 			c := e.NewContext(request, w)
 			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.id}})
-			assert.NoError(t, server.GetUrlHandler(c))
+			assert.NoError(t, api.GetUrlHandler(c))
 
 			result := w.Result()
 			require.NoError(t, result.Body.Close())
