@@ -21,15 +21,12 @@ func NewShorterApi(service ShorterService) *ShorterApi {
 
 func (s *ShorterApi) DoShortUrlHandler(c *echo.Context) error {
 	r := c.Request()
-	if r.Method != http.MethodPost {
-		return c.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
-	}
 
+	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return c.String(http.StatusBadRequest, "Не удалось прочитать тело запроса")
 	}
-	defer r.Body.Close()
 
 	url := string(body)
 	if url == "" {
@@ -45,11 +42,6 @@ func (s *ShorterApi) DoShortUrlHandler(c *echo.Context) error {
 }
 
 func (s *ShorterApi) GetUrlHandler(c *echo.Context) error {
-	r := c.Request()
-	if r.Method != http.MethodGet {
-		return c.String(http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed))
-	}
-
 	id := c.Param("id")
 	url, err := s.service.GetUrl(id)
 	if err != nil {

@@ -9,31 +9,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var cfg = &config.Config{
-	Port:         "8080",
-	ShortUrlAddr: "http://localhost:8080",
-}
-
 func TestShorterService_DoShortUrl(t *testing.T) {
-
-	s := NewShorterService(repository.NewMemoryRepository(), cfg)
 
 	tests := []struct {
 		name string
 		url  string
-		want string
 	}{
 		{
 			name: "simple test 1",
 			url:  "http://google.com",
-			want: "http://localhost:8080/x7kg9X5V",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			cfg := &config.Config{
+				Server:         &config.ServerConfig{Port: ":8080"},
+				ShorterService: &config.ShorterServiceConfig{ShortUrlAddr: "http://localhost:8080"},
+			}
+			s := NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
+
 			_, shortUrl, err := s.DoShortUrl(test.url)
 			require.NoError(t, err)
-			assert.Equal(t, test.want, shortUrl)
+			assert.NotEqual(t, test.url, shortUrl)
 		})
 	}
 }
@@ -43,25 +40,38 @@ func TestShortenURL(t *testing.T) {
 	tests := []struct {
 		name string
 		url  string
-		want string
 	}{
 		{
 			name: "simple test 1",
 			url:  "http://google.com",
-			want: "x7kg9X5V",
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			t.Run(test.name, func(t *testing.T) {
-				assert.Equal(t, test.want, URLHash(test.url))
-			})
+			assert.NotEqual(t, test.url, urlHash(test.url))
+		})
+	}
+}
+
+func TestShortenURL_NotEqualSameUrl(t *testing.T) {
+
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{
+			name: "simple test 1",
+			url:  "http://google.com",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			assert.NotEqual(t, urlHash(test.url), urlHash(test.url))
 		})
 	}
 }
 
 func TestShorterService_GetUrl(t *testing.T) {
-	s := NewShorterService(repository.NewMemoryRepository(), cfg)
 
 	tests := []struct {
 		name string
@@ -75,6 +85,12 @@ func TestShorterService_GetUrl(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			cfg := &config.Config{
+				Server:         &config.ServerConfig{Port: ":8080"},
+				ShorterService: &config.ShorterServiceConfig{ShortUrlAddr: "http://localhost:8080"},
+			}
+			s := NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
+
 			hash, _, err := s.DoShortUrl(test.url)
 			require.NoError(t, err)
 			url, err := s.GetUrl(hash)

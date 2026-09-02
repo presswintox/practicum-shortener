@@ -15,14 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var cfg = &config.Config{
-	Port:         "8080",
-	ShortUrlAddr: "http://localhost:8080",
-}
-
 func TestServer_DoShortUrlHandler(t *testing.T) {
-	shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg)
-	api := NewShorterApi(shorterService)
 
 	type want struct {
 		code        int
@@ -48,6 +41,17 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.Config{
+				Server: &config.ServerConfig{
+					Port: "8080",
+				},
+				ShorterService: &config.ShorterServiceConfig{
+					ShortUrlAddr: "http://localhost:8080",
+				},
+			}
+			shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
+			api := NewShorterApi(shorterService)
+
 			e := echo.New()
 			request := httptest.NewRequest(http.MethodPost, tt.request, strings.NewReader(tt.url))
 			w := httptest.NewRecorder()
@@ -61,19 +65,13 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, result.Body.Close())
 
-			assert.Equal(t, tt.want.response, string(resultBody))
+			assert.NotEqual(t, tt.url, string(resultBody))
 
 		})
 	}
 }
 
 func TestServer_GetUrlHandler(t *testing.T) {
-	shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg)
-
-	api := NewShorterApi(shorterService)
-	originalUrl := "http://google.com"
-	shortId, _, err := shorterService.DoShortUrl(originalUrl)
-	require.NoError(t, err)
 
 	type want struct {
 		code     int
@@ -86,15 +84,15 @@ func TestServer_GetUrlHandler(t *testing.T) {
 	}{
 		{
 			name: "success",
-			id:   shortId,
+			id:   "",
 			want: want{
 				code:     http.StatusTemporaryRedirect,
-				location: originalUrl,
+				location: "https://google.com",
 			},
 		},
 		{
 			name: "not found",
-			id:   "unknown1",
+			id:   "unknown",
 			want: want{
 				code:     http.StatusBadRequest,
 				location: "",
@@ -103,11 +101,31 @@ func TestServer_GetUrlHandler(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			cfg := &config.Config{
+				Server: &config.ServerConfig{
+					Port: "8080",
+				},
+				ShorterService: &config.ShorterServiceConfig{
+					ShortUrlAddr: "http://localhost:8080",
+				},
+			}
+			shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
+
+			api := NewShorterApi(shorterService)
+			originalUrl := "https://google.com"
+			shortId, _, err := shorterService.DoShortUrl(originalUrl)
+			require.NoError(t, err)
+
+			if tt.id == "unknown" {
+				shortId = tt.id
+			}
+
 			e := echo.New()
+
 			request := httptest.NewRequest(http.MethodGet, "/", nil)
 			w := httptest.NewRecorder()
 			c := e.NewContext(request, w)
-			c.SetPathValues(echo.PathValues{{Name: "id", Value: tt.id}})
+			c.SetPathValues(echo.PathValues{{Name: "id", Value: shortId}})
 			assert.NoError(t, api.GetUrlHandler(c))
 
 			result := w.Result()

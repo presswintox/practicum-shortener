@@ -19,40 +19,60 @@ func TestNewConfig(t *testing.T) {
 			name: "default values",
 			args: nil,
 			want: &Config{
-				Port:         ":8080",
-				ShortUrlAddr: "http://localhost:8080",
+				Server: &ServerConfig{
+					Port: ":8080",
+				},
+				ShorterService: &ShorterServiceConfig{
+					ShortUrlAddr: "http://localhost:8080",
+				},
 			},
 		},
 		{
 			name: "both flags",
 			args: []string{"-a=1111", "-b=https://google.com"},
 			want: &Config{
-				Port:         "1111",
-				ShortUrlAddr: "https://google.com",
+				Server: &ServerConfig{
+					Port: "1111",
+				},
+				ShorterService: &ShorterServiceConfig{
+					ShortUrlAddr: "https://google.com",
+				},
 			},
 		},
 		{
 			name: "value as separate argument",
 			args: []string{"-a", ":9090", "-b", "http://example.com"},
 			want: &Config{
-				Port:         ":9090",
-				ShortUrlAddr: "http://example.com",
+				Server: &ServerConfig{
+					Port: ":9090",
+				},
+				ShorterService: &ShorterServiceConfig{
+					ShortUrlAddr: "http://example.com",
+				},
 			},
 		},
 		{
 			name: "only port",
 			args: []string{"-a=:3000"},
 			want: &Config{
-				Port:         ":3000",
-				ShortUrlAddr: "http://localhost:8080",
+				Server: &ServerConfig{
+					Port: ":3000",
+				},
+				ShorterService: &ShorterServiceConfig{
+					ShortUrlAddr: "http://localhost:8080",
+				},
 			},
 		},
 		{
 			name: "only short url address",
 			args: []string{"-b=http://short.ly"},
 			want: &Config{
-				Port:         ":8080",
-				ShortUrlAddr: "http://short.ly",
+				Server: &ServerConfig{
+					Port: ":8080",
+				},
+				ShorterService: &ShorterServiceConfig{
+					ShortUrlAddr: "http://short.ly",
+				},
 			},
 		},
 	}

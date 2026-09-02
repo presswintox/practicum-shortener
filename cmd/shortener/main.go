@@ -1,6 +1,8 @@
 package main
 
 import (
+	"log"
+
 	"github.com/presswintox/practicum-shortener/internal/config"
 	"github.com/presswintox/practicum-shortener/internal/handler"
 	"github.com/presswintox/practicum-shortener/internal/repository"
@@ -10,7 +12,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
@@ -18,10 +20,10 @@ func main() {
 func run() error {
 	cfg := config.NewConfig()
 	db := repository.NewMemoryRepository()
-	shortService := service.NewShorterService(db, cfg)
+	shortService := service.NewShorterService(db, cfg.ShorterService.ShortUrlAddr)
 	shorterApi := handler.NewShorterApi(shortService)
 
-	srv := server.NewServer(cfg.Port, shorterApi)
+	srv := server.NewServer(cfg.Server.Port, shorterApi)
 
 	return srv.Start()
 }

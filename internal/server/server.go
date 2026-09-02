@@ -2,16 +2,20 @@ package server
 
 import (
 	"github.com/labstack/echo/v5"
-	"github.com/presswintox/practicum-shortener/internal/handler"
 )
+
+type ShorterApi interface {
+	DoShortUrlHandler(c *echo.Context) error
+	GetUrlHandler(c *echo.Context) error
+}
 
 type Server struct {
 	echo       *echo.Echo
 	port       string
-	shorterApi *handler.ShorterApi
+	shorterApi ShorterApi
 }
 
-func NewServer(port string, shorterApi *handler.ShorterApi) *Server {
+func NewServer(port string, shorterApi ShorterApi) *Server {
 	e := echo.New()
 
 	s := &Server{

@@ -5,7 +5,7 @@ import (
 )
 
 type MemoryRepository struct {
-	mu sync.RWMutex
+	mu sync.Mutex
 	db map[string]string
 }
 
@@ -16,14 +16,16 @@ func NewMemoryRepository() *MemoryRepository {
 func (r *MemoryRepository) Save(id, value string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-
+	if _, exist := r.db[id]; exist {
+		return ErrAlreadyExists
+	}
 	r.db[id] = value
 	return nil
 }
 
 func (r *MemoryRepository) Get(id string) (string, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
 
 	url, ok := r.db[id]
 	if !ok {
