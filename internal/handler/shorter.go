@@ -25,17 +25,20 @@ func (s *ShorterApi) DoShortUrlHandler(c *echo.Context) error {
 	defer r.Body.Close()
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		return c.String(http.StatusBadRequest, "Не удалось прочитать тело запроса")
+		c.Logger().Info(err.Error())
+		return echo.ErrBadRequest
 	}
 
 	url := string(body)
 	if url == "" {
-		return c.String(http.StatusBadRequest, "Пустой URL")
+		c.Logger().Info("empty url")
+		return echo.ErrBadRequest
 	}
 
 	_, shortUrl, err := s.service.DoShortUrl(url)
 	if err != nil {
-		return c.String(http.StatusInternalServerError, "Не удалось сохранить URL")
+		c.Logger().Error(err.Error())
+		return echo.ErrInternalServerError
 	}
 
 	return c.String(http.StatusCreated, shortUrl)
@@ -45,7 +48,8 @@ func (s *ShorterApi) GetUrlHandler(c *echo.Context) error {
 	id := c.Param("id")
 	url, err := s.service.GetUrl(id)
 	if err != nil {
-		return c.String(http.StatusBadRequest, err.Error())
+		c.Logger().Info(err.Error())
+		return echo.ErrBadRequest
 	}
 
 	return c.Redirect(http.StatusTemporaryRedirect, url)

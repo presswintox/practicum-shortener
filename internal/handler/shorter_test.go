@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/echotest"
 	"github.com/presswintox/practicum-shortener/internal/config"
 	"github.com/presswintox/practicum-shortener/internal/repository"
 	"github.com/presswintox/practicum-shortener/internal/service"
@@ -38,6 +39,15 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 			},
 			request: "/",
 		},
+		{
+			name: "empty url",
+			url:  "",
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
+			},
+			request: "/",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -52,11 +62,10 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 			shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
 			api := NewShorterApi(shorterService)
 
-			e := echo.New()
-			request := httptest.NewRequest(http.MethodPost, tt.request, strings.NewReader(tt.url))
-			w := httptest.NewRecorder()
-			c := e.NewContext(request, w)
-			assert.NoError(t, api.DoShortUrlHandler(c))
+			w := echotest.ContextConfig{
+				Request: httptest.NewRequest(http.MethodPost, tt.request, strings.NewReader(tt.url)),
+			}.ServeWithHandler(t, api.DoShortUrlHandler)
+
 			result := w.Result()
 
 			assert.Equal(t, tt.want.code, result.StatusCode)
@@ -120,13 +129,10 @@ func TestServer_GetUrlHandler(t *testing.T) {
 				shortId = tt.id
 			}
 
-			e := echo.New()
-
-			request := httptest.NewRequest(http.MethodGet, "/", nil)
-			w := httptest.NewRecorder()
-			c := e.NewContext(request, w)
-			c.SetPathValues(echo.PathValues{{Name: "id", Value: shortId}})
-			assert.NoError(t, api.GetUrlHandler(c))
+			w := echotest.ContextConfig{
+				Request:    httptest.NewRequest(http.MethodGet, "/", nil),
+				PathValues: echo.PathValues{{Name: "id", Value: shortId}},
+			}.ServeWithHandler(t, api.GetUrlHandler)
 
 			result := w.Result()
 			require.NoError(t, result.Body.Close())
