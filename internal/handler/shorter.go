@@ -8,18 +8,18 @@ import (
 )
 
 type ShorterService interface {
-	DoShortUrl(url string) (string, string, error)
-	GetUrl(shortUrl string) (string, error)
+	DoShortURL(url string) (string, string, error)
+	GetURL(shortURL string) (string, error)
 }
-type ShorterApi struct {
+type ShorterAPI struct {
 	service ShorterService
 }
 
-func NewShorterApi(service ShorterService) *ShorterApi {
-	return &ShorterApi{service: service}
+func NewShorterAPI(service ShorterService) *ShorterAPI {
+	return &ShorterAPI{service: service}
 }
 
-func (s *ShorterApi) DoShortUrlHandler(c *echo.Context) error {
+func (s *ShorterAPI) DoShortURLHandler(c *echo.Context) error {
 	r := c.Request()
 
 	defer r.Body.Close()
@@ -35,18 +35,18 @@ func (s *ShorterApi) DoShortUrlHandler(c *echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	_, shortUrl, err := s.service.DoShortUrl(url)
+	_, shortURL, err := s.service.DoShortURL(url)
 	if err != nil {
 		c.Logger().Error(err.Error())
 		return echo.ErrInternalServerError
 	}
 
-	return c.String(http.StatusCreated, shortUrl)
+	return c.String(http.StatusCreated, shortURL)
 }
 
-func (s *ShorterApi) GetUrlHandler(c *echo.Context) error {
+func (s *ShorterAPI) GetURLHandler(c *echo.Context) error {
 	id := c.Param("id")
-	url, err := s.service.GetUrl(id)
+	url, err := s.service.GetURL(id)
 	if err != nil {
 		c.Logger().Info(err.Error())
 		return echo.ErrBadRequest

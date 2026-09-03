@@ -10,7 +10,7 @@ type ServerConfig struct {
 	Port string
 }
 type ShorterServiceConfig struct {
-	ShortUrlAddr string
+	ShortURLAddr string
 }
 
 func NewConfig() *Config {
@@ -19,7 +19,7 @@ func NewConfig() *Config {
 		ShorterService: &ShorterServiceConfig{},
 	}
 	flag.StringVar(&cfg.Server.Port, "a", ":8080", "address and port to run server")
-	flag.StringVar(&cfg.ShorterService.ShortUrlAddr, "b", "http://localhost:8080", "address and port for short url")
+	flag.StringVar(&cfg.ShorterService.ShortURLAddr, "b", "http://localhost:8080", "address and port for short url")
 	flag.Parse()
 
 	return cfg

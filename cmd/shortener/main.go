@@ -20,10 +20,10 @@ func main() {
 func run() error {
 	cfg := config.NewConfig()
 	db := repository.NewMemoryRepository()
-	shortService := service.NewShorterService(db, cfg.ShorterService.ShortUrlAddr)
-	shorterApi := handler.NewShorterApi(shortService)
+	shortService := service.NewShorterService(db, cfg.ShorterService.ShortURLAddr)
+	shorterAPI := handler.NewShorterAPI(shortService)
 
-	srv := server.NewServer(cfg.Server.Port, shorterApi)
+	srv := server.NewServer(cfg.Server.Port, shorterAPI)
 
 	return srv.Start()
 }

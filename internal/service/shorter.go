@@ -20,30 +20,30 @@ const saltLength int = 16
 var ErrHashCollision = errors.New("failed to generate unique short url")
 
 type ShorterRepository interface {
-	Save(shortUrl, url string) error
-	Get(shortUrl string) (string, error)
+	Save(shortURL, url string) error
+	Get(shortURL string) (string, error)
 }
 type ShorterService struct {
 	db           ShorterRepository
-	shortUrlAddr string
+	shortURLAddr string
 }
 
-func NewShorterService(db ShorterRepository, shortUrlAddr string) *ShorterService {
-	return &ShorterService{db: db, shortUrlAddr: shortUrlAddr}
+func NewShorterService(db ShorterRepository, shortURLAddr string) *ShorterService {
+	return &ShorterService{db: db, shortURLAddr: shortURLAddr}
 }
 
-func (s *ShorterService) DoShortUrl(url string) (string, string, error) {
+func (s *ShorterService) DoShortURL(url string) (string, string, error) {
 	for range maxHashAttempts {
 		hash := urlHash(url)
 
 		err := s.db.Save(hash, url)
 		switch {
 		case err == nil:
-			shortUrl, err2 := s.shortUrl(hash)
+			shortURL, err2 := s.shortURL(hash)
 			if err2 != nil {
 				return "", "", fmt.Errorf("failed to generate short url: %w", err2)
 			}
-			return hash, shortUrl, nil
+			return hash, shortURL, nil
 		case errors.Is(err, repository.ErrAlreadyExists):
 			continue
 		default:
@@ -53,12 +53,12 @@ func (s *ShorterService) DoShortUrl(url string) (string, string, error) {
 	return "", "", fmt.Errorf("failed to save short url: %w", ErrHashCollision)
 }
 
-func (s *ShorterService) GetUrl(shortUrl string) (string, error) {
-	return s.db.Get(shortUrl)
+func (s *ShorterService) GetURL(shortURL string) (string, error) {
+	return s.db.Get(shortURL)
 }
 
-func (s *ShorterService) shortUrl(hash string) (string, error) {
-	return url.JoinPath(s.shortUrlAddr, hash)
+func (s *ShorterService) shortURL(hash string) (string, error) {
+	return url.JoinPath(s.shortURLAddr, hash)
 }
 
 func generateSalt(length int) string {

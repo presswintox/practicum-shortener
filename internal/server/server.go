@@ -4,24 +4,24 @@ import (
 	"github.com/labstack/echo/v5"
 )
 
-type ShorterApi interface {
-	DoShortUrlHandler(c *echo.Context) error
-	GetUrlHandler(c *echo.Context) error
+type ShorterAPI interface {
+	DoShortURLHandler(c *echo.Context) error
+	GetURLHandler(c *echo.Context) error
 }
 
 type Server struct {
 	echo       *echo.Echo
 	port       string
-	shorterApi ShorterApi
+	shorterAPI ShorterAPI
 }
 
-func NewServer(port string, shorterApi ShorterApi) *Server {
+func NewServer(port string, shorterAPI ShorterAPI) *Server {
 	e := echo.New()
 
 	s := &Server{
 		echo:       e,
 		port:       port,
-		shorterApi: shorterApi,
+		shorterAPI: shorterAPI,
 	}
 	s.setupRouters()
 	return s
@@ -32,6 +32,6 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) setupRouters() {
-	s.echo.GET("/:id", s.shorterApi.GetUrlHandler)
-	s.echo.POST("/", s.shorterApi.DoShortUrlHandler)
+	s.echo.GET("/:id", s.shorterAPI.GetURLHandler)
+	s.echo.POST("/", s.shorterAPI.DoShortURLHandler)
 }

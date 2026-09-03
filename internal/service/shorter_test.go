@@ -23,14 +23,13 @@ func TestShorterService_DoShortUrl(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cfg := &config.Config{
-				Server:         &config.ServerConfig{Port: ":8080"},
-				ShorterService: &config.ShorterServiceConfig{ShortUrlAddr: "http://localhost:8080"},
+				ShorterService: &config.ShorterServiceConfig{ShortURLAddr: "http://localhost:8080"},
 			}
-			s := NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
+			s := NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortURLAddr)
 
-			_, shortUrl, err := s.DoShortUrl(test.url)
+			_, shortURL, err := s.DoShortURL(test.url)
 			require.NoError(t, err)
-			assert.NotEqual(t, test.url, shortUrl)
+			assert.NotEqual(t, test.url, shortURL)
 		})
 	}
 }
@@ -86,14 +85,13 @@ func TestShorterService_GetUrl(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			cfg := &config.Config{
-				Server:         &config.ServerConfig{Port: ":8080"},
-				ShorterService: &config.ShorterServiceConfig{ShortUrlAddr: "http://localhost:8080"},
+				ShorterService: &config.ShorterServiceConfig{ShortURLAddr: "http://localhost:8080"},
 			}
-			s := NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
+			s := NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortURLAddr)
 
-			hash, _, err := s.DoShortUrl(test.url)
+			hash, _, err := s.DoShortURL(test.url)
 			require.NoError(t, err)
-			url, err := s.GetUrl(hash)
+			url, err := s.GetURL(hash)
 			require.NoError(t, err)
 			assert.Equal(t, test.url, url)
 		})

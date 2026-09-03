@@ -52,19 +52,16 @@ func TestServer_DoShortUrlHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config.Config{
-				Server: &config.ServerConfig{
-					Port: "8080",
-				},
 				ShorterService: &config.ShorterServiceConfig{
-					ShortUrlAddr: "http://localhost:8080",
+					ShortURLAddr: "http://localhost:8080",
 				},
 			}
-			shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
-			api := NewShorterApi(shorterService)
+			shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortURLAddr)
+			api := NewShorterAPI(shorterService)
 
 			w := echotest.ContextConfig{
 				Request: httptest.NewRequest(http.MethodPost, tt.request, strings.NewReader(tt.url)),
-			}.ServeWithHandler(t, api.DoShortUrlHandler)
+			}.ServeWithHandler(t, api.DoShortURLHandler)
 
 			result := w.Result()
 
@@ -111,28 +108,25 @@ func TestServer_GetUrlHandler(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config.Config{
-				Server: &config.ServerConfig{
-					Port: "8080",
-				},
 				ShorterService: &config.ShorterServiceConfig{
-					ShortUrlAddr: "http://localhost:8080",
+					ShortURLAddr: "http://localhost:8080",
 				},
 			}
-			shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortUrlAddr)
+			shorterService := service.NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortURLAddr)
 
-			api := NewShorterApi(shorterService)
-			originalUrl := "https://google.com"
-			shortId, _, err := shorterService.DoShortUrl(originalUrl)
+			api := NewShorterAPI(shorterService)
+			originalURL := "https://google.com"
+			shortID, _, err := shorterService.DoShortURL(originalURL)
 			require.NoError(t, err)
 
 			if tt.id == "unknown" {
-				shortId = tt.id
+				shortID = tt.id
 			}
 
 			w := echotest.ContextConfig{
 				Request:    httptest.NewRequest(http.MethodGet, "/", nil),
-				PathValues: echo.PathValues{{Name: "id", Value: shortId}},
-			}.ServeWithHandler(t, api.GetUrlHandler)
+				PathValues: echo.PathValues{{Name: "id", Value: shortID}},
+			}.ServeWithHandler(t, api.GetURLHandler)
 
 			result := w.Result()
 			require.NoError(t, result.Body.Close())

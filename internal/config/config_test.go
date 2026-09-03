@@ -23,7 +23,7 @@ func TestNewConfig(t *testing.T) {
 					Port: ":8080",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortUrlAddr: "http://localhost:8080",
+					ShortURLAddr: "http://localhost:8080",
 				},
 			},
 		},
@@ -35,7 +35,7 @@ func TestNewConfig(t *testing.T) {
 					Port: "1111",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortUrlAddr: "https://google.com",
+					ShortURLAddr: "https://google.com",
 				},
 			},
 		},
@@ -47,7 +47,7 @@ func TestNewConfig(t *testing.T) {
 					Port: ":9090",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortUrlAddr: "http://example.com",
+					ShortURLAddr: "http://example.com",
 				},
 			},
 		},
@@ -59,7 +59,7 @@ func TestNewConfig(t *testing.T) {
 					Port: ":3000",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortUrlAddr: "http://localhost:8080",
+					ShortURLAddr: "http://localhost:8080",
 				},
 			},
 		},
@@ -71,7 +71,7 @@ func TestNewConfig(t *testing.T) {
 					Port: ":8080",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortUrlAddr: "http://short.ly",
+					ShortURLAddr: "http://short.ly",
 				},
 			},
 		},
