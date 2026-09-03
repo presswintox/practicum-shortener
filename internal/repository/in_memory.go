@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -17,7 +18,7 @@ func (r *MemoryRepository) Save(id, value string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, exist := r.db[id]; exist {
-		return ErrAlreadyExists
+		return fmt.Errorf("%w: %q", ErrAlreadyExists, id)
 	}
 	r.db[id] = value
 	return nil
@@ -29,7 +30,7 @@ func (r *MemoryRepository) Get(id string) (string, error) {
 
 	url, ok := r.db[id]
 	if !ok {
-		return "", ErrNotFound
+		return "", fmt.Errorf("%w: %q", ErrNotFound, id)
 	}
 	return url, nil
 }

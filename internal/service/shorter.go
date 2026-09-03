@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"net/url"
 
 	"github.com/presswintox/practicum-shortener/internal/repository"
 )
@@ -38,7 +39,11 @@ func (s *ShorterService) DoShortUrl(url string) (string, string, error) {
 		err := s.db.Save(hash, url)
 		switch {
 		case err == nil:
-			return hash, s.shortUrl(hash), nil
+			shortUrl, err2 := s.shortUrl(hash)
+			if err2 != nil {
+				return "", "", fmt.Errorf("failed to generate short url: %w", err2)
+			}
+			return hash, shortUrl, nil
 		case errors.Is(err, repository.ErrAlreadyExists):
 			continue
 		default:
@@ -52,8 +57,8 @@ func (s *ShorterService) GetUrl(shortUrl string) (string, error) {
 	return s.db.Get(shortUrl)
 }
 
-func (s *ShorterService) shortUrl(hash string) string {
-	return fmt.Sprintf("%s/%s", s.shortUrlAddr, hash)
+func (s *ShorterService) shortUrl(hash string) (string, error) {
+	return url.JoinPath(s.shortUrlAddr, hash)
 }
 
 func generateSalt(length int) string {
