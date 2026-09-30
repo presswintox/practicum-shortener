@@ -62,4 +62,7 @@ func (s *Server) setupMiddlewares() {
 			return nil
 		},
 	}))
+
+	s.echo.Use(middleware.Gzip())
+	s.echo.Use(middleware.Decompress())
 }
