@@ -11,9 +11,11 @@ import (
 func TestNewConfig(t *testing.T) {
 
 	tests := []struct {
-		name string
-		args []string
-		want *Config
+		name          string
+		args          []string
+		serverAddress string
+		baseURL       string
+		want          *Config
 	}{
 		{
 			name: "default values",
@@ -75,10 +77,47 @@ func TestNewConfig(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:          "only SERVER_ADDRESS environment variable",
+			serverAddress: ":9090",
+			want: &Config{
+				Server:         &ServerConfig{Port: ":9090"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080"},
+			},
+		},
+		{
+			name:    "only BASE_URL environment variable",
+			baseURL: "https://short.example.com",
+			want: &Config{
+				Server:         &ServerConfig{Port: ":8080"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com"},
+			},
+		},
+		{
+			name:          "both environment variables",
+			serverAddress: ":9090",
+			baseURL:       "https://short.example.com",
+			want: &Config{
+				Server:         &ServerConfig{Port: ":9090"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com"},
+			},
+		},
+		{
+			name:          "environment variables override flags",
+			args:          []string{"-a=:3000", "-b=http://short.ly"},
+			serverAddress: ":9090",
+			baseURL:       "https://short.example.com",
+			want: &Config{
+				Server:         &ServerConfig{Port: ":9090"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com"},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("SERVER_ADDRESS", tt.serverAddress)
+			t.Setenv("BASE_URL", tt.baseURL)
 			setArgs(t, tt.args)
 			assert.Equal(t, tt.want, NewConfig())
 		})

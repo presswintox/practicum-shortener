@@ -1,6 +1,9 @@
 package config
 
-import "flag"
+import (
+	"flag"
+	"os"
+)
 
 type Config struct {
 	Server         *ServerConfig
@@ -22,5 +25,11 @@ func NewConfig() *Config {
 	flag.StringVar(&cfg.ShorterService.ShortURLAddr, "b", "http://localhost:8080", "address and port for short url")
 	flag.Parse()
 
+	if envServerPort := os.Getenv("SERVER_ADDRESS"); envServerPort != "" {
+		cfg.Server.Port = envServerPort
+	}
+	if envShorterURL := os.Getenv("BASE_URL"); envShorterURL != "" {
+		cfg.ShorterService.ShortURLAddr = envShorterURL
+	}
 	return cfg
 }
