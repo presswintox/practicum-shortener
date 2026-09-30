@@ -29,7 +29,7 @@ func TestFileRepository_SaveAndGet(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "storage.json")
-			file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+			file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
 			require.NoError(t, err)
 			t.Cleanup(func() { _ = file.Close() })
 
@@ -45,7 +45,7 @@ func TestFileRepository_SaveAndGet(t *testing.T) {
 
 func TestFileRepository_Load(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "storage.json")
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0o600)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
 	require.NoError(t, err)
 
 	r := NewFileRepository(file)

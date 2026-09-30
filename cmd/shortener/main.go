@@ -21,7 +21,7 @@ func main() {
 func run() error {
 	cfg := config.NewConfig()
 
-	file, err := os.OpenFile(cfg.ShorterService.FileStoragePath, os.O_RDWR|os.O_CREATE, 0o600)
+	file, err := os.OpenFile(cfg.ShorterService.FileStoragePath, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return err
 	}
