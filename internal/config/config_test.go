@@ -15,6 +15,7 @@ func TestNewConfig(t *testing.T) {
 		args          []string
 		serverAddress string
 		baseURL       string
+		filePath      string
 		want          *Config
 	}{
 		{
@@ -25,7 +26,8 @@ func TestNewConfig(t *testing.T) {
 					Port: ":8080",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortURLAddr: "http://localhost:8080",
+					ShortURLAddr:    "http://localhost:8080",
+					FileStoragePath: "storage.json",
 				},
 			},
 		},
@@ -37,7 +39,8 @@ func TestNewConfig(t *testing.T) {
 					Port: "1111",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortURLAddr: "https://google.com",
+					ShortURLAddr:    "https://google.com",
+					FileStoragePath: "storage.json",
 				},
 			},
 		},
@@ -49,7 +52,8 @@ func TestNewConfig(t *testing.T) {
 					Port: ":9090",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortURLAddr: "http://example.com",
+					ShortURLAddr:    "http://example.com",
+					FileStoragePath: "storage.json",
 				},
 			},
 		},
@@ -61,7 +65,8 @@ func TestNewConfig(t *testing.T) {
 					Port: ":3000",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortURLAddr: "http://localhost:8080",
+					ShortURLAddr:    "http://localhost:8080",
+					FileStoragePath: "storage.json",
 				},
 			},
 		},
@@ -73,7 +78,8 @@ func TestNewConfig(t *testing.T) {
 					Port: ":8080",
 				},
 				ShorterService: &ShorterServiceConfig{
-					ShortURLAddr: "http://short.ly",
+					ShortURLAddr:    "http://short.ly",
+					FileStoragePath: "storage.json",
 				},
 			},
 		},
@@ -82,7 +88,7 @@ func TestNewConfig(t *testing.T) {
 			serverAddress: ":9090",
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
-				ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "storage.json"},
 			},
 		},
 		{
@@ -90,7 +96,7 @@ func TestNewConfig(t *testing.T) {
 			baseURL: "https://short.example.com",
 			want: &Config{
 				Server:         &ServerConfig{Port: ":8080"},
-				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
 			},
 		},
 		{
@@ -99,7 +105,7 @@ func TestNewConfig(t *testing.T) {
 			baseURL:       "https://short.example.com",
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
-				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
 			},
 		},
 		{
@@ -109,8 +115,19 @@ func TestNewConfig(t *testing.T) {
 			baseURL:       "https://short.example.com",
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
-				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
 			},
+		},
+		{
+			name: "file storage flag",
+			args: []string{"-f=/tmp/shortener.json"},
+			want: &Config{Server: &ServerConfig{Port: ":8080"}, ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "/tmp/shortener.json"}},
+		},
+		{
+			name:     "file storage environment variable overrides flag",
+			args:     []string{"-f=/tmp/from-flag.json"},
+			filePath: "/tmp/from-env.json",
+			want:     &Config{Server: &ServerConfig{Port: ":8080"}, ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "/tmp/from-env.json"}},
 		},
 	}
 
@@ -118,6 +135,7 @@ func TestNewConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("SERVER_ADDRESS", tt.serverAddress)
 			t.Setenv("BASE_URL", tt.baseURL)
+			t.Setenv("FILE_STORAGE_PATH", tt.filePath)
 			setArgs(t, tt.args)
 			assert.Equal(t, tt.want, NewConfig())
 		})
