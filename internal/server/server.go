@@ -2,11 +2,14 @@ package server
 
 import (
 	"github.com/labstack/echo/v5"
+	"github.com/labstack/echo/v5/middleware"
+	"go.uber.org/zap"
 )
 
 type ShorterAPI interface {
 	DoShortURLHandler(c *echo.Context) error
 	GetURLHandler(c *echo.Context) error
+	ShortenHandler(c *echo.Context) error
 }
 
 type Server struct {
@@ -23,6 +26,7 @@ func NewServer(port string, shorterAPI ShorterAPI) *Server {
 		port:       port,
 		shorterAPI: shorterAPI,
 	}
+	s.setupMiddlewares()
 	s.setupRouters()
 	return s
 }
@@ -34,4 +38,31 @@ func (s *Server) Start() error {
 func (s *Server) setupRouters() {
 	s.echo.GET("/:id", s.shorterAPI.GetURLHandler)
 	s.echo.POST("/", s.shorterAPI.DoShortURLHandler)
+
+	api := s.echo.Group("/api")
+	api.POST("/shorten", s.shorterAPI.ShortenHandler)
+}
+func (s *Server) setupMiddlewares() {
+	logger, _ := zap.NewProduction()
+	s.echo.Use(middleware.RequestLoggerWithConfig(middleware.RequestLoggerConfig{
+		LogURI:          true,
+		LogMethod:       true,
+		LogLatency:      true,
+		LogStatus:       true,
+		LogResponseSize: true,
+		LogValuesFunc: func(c *echo.Context, v middleware.RequestLoggerValues) error {
+
+			logger.Info("request",
+				zap.String("Method", v.Method),
+				zap.String("URI", v.URI),
+				zap.Duration("latency", v.Latency),
+				zap.Int("status", v.Status),
+				zap.Int("response length", int(v.ResponseSize)),
+			)
+			return nil
+		},
+	}))
+
+	s.echo.Use(middleware.Gzip())
+	s.echo.Use(middleware.Decompress())
 }
