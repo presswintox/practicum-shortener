@@ -9,6 +9,7 @@ import (
 type ShorterAPI interface {
 	DoShortURLHandler(c *echo.Context) error
 	GetURLHandler(c *echo.Context) error
+	ShortenHandler(c *echo.Context) error
 }
 
 type Server struct {
@@ -37,6 +38,9 @@ func (s *Server) Start() error {
 func (s *Server) setupRouters() {
 	s.echo.GET("/:id", s.shorterAPI.GetURLHandler)
 	s.echo.POST("/", s.shorterAPI.DoShortURLHandler)
+
+	api := s.echo.Group("/api")
+	api.POST("/shorten", s.shorterAPI.ShortenHandler)
 }
 func (s *Server) setupMiddlewares() {
 	logger, _ := zap.NewProduction()
