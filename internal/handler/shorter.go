@@ -8,7 +8,7 @@ import (
 )
 
 type ShorterService interface {
-	DoShortURL(url string) (string, string, error)
+	Shorten(url string) (string, error)
 	GetURL(shortURL string) (string, error)
 }
 type ShorterAPI struct {
@@ -35,7 +35,7 @@ func (s *ShorterAPI) DoShortURLHandler(c *echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	_, shortURL, err := s.service.DoShortURL(url)
+	shortURL, err := s.service.Shorten(url)
 	if err != nil {
 		c.Logger().Error(err.Error())
 		return echo.ErrInternalServerError
@@ -75,7 +75,7 @@ func (s *ShorterAPI) ShortenHandler(c *echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
-	_, shortURL, err := s.service.DoShortURL(body.URL)
+	shortURL, err := s.service.Shorten(body.URL)
 	if err != nil {
 		c.Logger().Error(err.Error())
 		return echo.ErrInternalServerError

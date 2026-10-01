@@ -1,6 +1,8 @@
 package service
 
 import (
+	"net/url"
+	"strings"
 	"testing"
 
 	"github.com/presswintox/practicum-shortener/internal/config"
@@ -27,7 +29,7 @@ func TestShorterService_DoShortUrl(t *testing.T) {
 			}
 			s := NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortURLAddr)
 
-			_, shortURL, err := s.DoShortURL(test.url)
+			shortURL, err := s.Shorten(test.url)
 			require.NoError(t, err)
 			assert.NotEqual(t, test.url, shortURL)
 		})
@@ -89,8 +91,13 @@ func TestShorterService_GetUrl(t *testing.T) {
 			}
 			s := NewShorterService(repository.NewMemoryRepository(), cfg.ShorterService.ShortURLAddr)
 
-			hash, _, err := s.DoShortURL(test.url)
+			shortURL, err := s.Shorten(test.url)
 			require.NoError(t, err)
+
+			parsedURL, err := url.Parse(shortURL)
+			require.NoError(t, err)
+			hash := strings.TrimPrefix(parsedURL.Path, "/")
+
 			url, err := s.GetURL(hash)
 			require.NoError(t, err)
 			assert.Equal(t, test.url, url)

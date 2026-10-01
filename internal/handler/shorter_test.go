@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -117,8 +118,11 @@ func TestServer_GetUrlHandler(t *testing.T) {
 
 			api := NewShorterAPI(shorterService)
 			originalURL := "https://google.com"
-			shortID, _, err := shorterService.DoShortURL(originalURL)
+			shortURL, err := shorterService.Shorten(originalURL)
 			require.NoError(t, err)
+			parsedURL, err := url.Parse(shortURL)
+			require.NoError(t, err)
+			shortID := strings.TrimPrefix(parsedURL.Path, "/")
 
 			if tt.id == "unknown" {
 				shortID = tt.id
@@ -205,8 +209,8 @@ type shorterServiceStub struct {
 	shortURL string
 }
 
-func (s *shorterServiceStub) DoShortURL(url string) (string, string, error) {
-	return "x7kg9X5V", s.shortURL, nil
+func (s *shorterServiceStub) Shorten(string) (string, error) {
+	return s.shortURL, nil
 }
 
 func (s *shorterServiceStub) GetURL(string) (string, error) {
