@@ -2,7 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/presswintox/practicum-shortener/internal/config"
 	"github.com/presswintox/practicum-shortener/internal/handler"
@@ -20,17 +19,11 @@ func main() {
 // run init all dependencies and run server
 func run() error {
 	cfg := config.NewConfig()
-
-	file, err := os.OpenFile(cfg.ShorterService.FileStoragePath, os.O_RDWR|os.O_CREATE, 0666)
+	db, err := repository.NewFileRepository(cfg.ShorterService.FileStoragePath)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
-
-	db := repository.NewFileRepository(file)
-	if err = db.Load(); err != nil {
-		return err
-	}
+	defer db.Close()
 
 	shortService := service.NewShorterService(db, cfg.ShorterService.ShortURLAddr)
 	shorterAPI := handler.NewShorterAPI(shortService)

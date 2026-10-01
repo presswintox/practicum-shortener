@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,22 +19,28 @@ type URLRecord struct {
 
 type FileRepository struct {
 	mu      sync.Mutex
-	records []URLRecord
+	records map[string]URLRecord
 	file    *os.File
 }
 
-func NewFileRepository(file *os.File) *FileRepository {
-	return &FileRepository{file: file}
+func NewFileRepository(path string) (*FileRepository, error) {
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return nil, fmt.Errorf("error opening file %s: %w", path, err)
+	}
+	db := &FileRepository{file: file, records: make(map[string]URLRecord)}
+	if err = db.Load(); err != nil {
+		return nil, fmt.Errorf("error loading file %s: %w", path, err)
+	}
+	return db, nil
 }
 
 func (r *FileRepository) Save(id, value string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for _, record := range r.records {
-		if record.ShortURL == id {
-			return fmt.Errorf("%w: %q", ErrAlreadyExists, id)
-		}
+	if _, ok := r.records[id]; ok {
+		return fmt.Errorf("%w: %q", ErrAlreadyExists, id)
 	}
 
 	record := URLRecord{
@@ -41,10 +48,10 @@ func (r *FileRepository) Save(id, value string) error {
 		ShortURL:    id,
 		OriginalURL: value,
 	}
-	r.records = append(r.records, record)
-	if err := r.saveRecords(r.records); err != nil {
+	if err := r.saveRecord(record); err != nil {
 		return fmt.Errorf("failed to save file storage: %w", err)
 	}
+	r.records[id] = record
 
 	return nil
 }
@@ -53,39 +60,41 @@ func (r *FileRepository) Get(id string) (string, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	for _, record := range r.records {
-		if record.ShortURL == id {
-			return record.OriginalURL, nil
-		}
+	if record, ok := r.records[id]; ok {
+		return record.OriginalURL, nil
 	}
 	return "", fmt.Errorf("%w: %q", ErrNotFound, id)
 }
 
 func (r *FileRepository) Load() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if _, err := r.file.Seek(0, io.SeekStart); err != nil {
 		return err
 	}
 
-	decoder := json.NewDecoder(r.file)
-	if err := decoder.Decode(&r.records); err != nil {
-		if err == io.EOF {
-			return nil
+	scanner := bufio.NewScanner(r.file)
+	for scanner.Scan() {
+		var record URLRecord
+		if err := json.Unmarshal(scanner.Bytes(), &record); err != nil {
+			return err
 		}
-		return err
+		r.records[record.ShortURL] = record
 	}
-
-	return nil
+	return scanner.Err()
 }
 
-func (r *FileRepository) saveRecords(records []URLRecord) error {
-	if _, err := r.file.Seek(0, io.SeekStart); err != nil {
+func (r *FileRepository) saveRecord(record URLRecord) error {
+	if _, err := r.file.Seek(0, io.SeekEnd); err != nil {
 		return err
 	}
-	if err := r.file.Truncate(0); err != nil {
-		return err
-	}
-	if err := json.NewEncoder(r.file).Encode(records); err != nil {
+	if err := json.NewEncoder(r.file).Encode(record); err != nil {
 		return err
 	}
 	return r.file.Sync()
+}
+
+func (r *FileRepository) Close() error {
+	return r.file.Close()
 }

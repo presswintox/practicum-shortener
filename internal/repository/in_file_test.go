@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -29,11 +28,9 @@ func TestFileRepository_SaveAndGet(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "storage.json")
-			file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+			r, err := NewFileRepository(path)
+			t.Cleanup(func() { _ = r.Close() })
 			require.NoError(t, err)
-			t.Cleanup(func() { _ = file.Close() })
-
-			r := NewFileRepository(file)
 			require.NoError(t, r.Save(test.id, test.value))
 
 			value, err := r.Get(test.id)
@@ -45,18 +42,14 @@ func TestFileRepository_SaveAndGet(t *testing.T) {
 
 func TestFileRepository_Load(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "storage.json")
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+	r, err := NewFileRepository(path)
 	require.NoError(t, err)
-
-	r := NewFileRepository(file)
 	require.NoError(t, r.Save("4rSPg8ap", "http://yandex.ru"))
-	require.NoError(t, file.Close())
+	require.NoError(t, r.Close())
 
-	file, err = os.OpenFile(path, os.O_RDWR, 0o600)
+	restored, err := NewFileRepository(path)
 	require.NoError(t, err)
-	t.Cleanup(func() { _ = file.Close() })
-
-	restored := NewFileRepository(file)
+	t.Cleanup(func() { _ = restored.Close() })
 	require.NoError(t, restored.Load())
 	value, err := restored.Get("4rSPg8ap")
 	require.NoError(t, err)
