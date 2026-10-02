@@ -32,7 +32,7 @@ func NewShorterService(db ShorterRepository, shortURLAddr string) *ShorterServic
 	return &ShorterService{db: db, shortURLAddr: shortURLAddr}
 }
 
-func (s *ShorterService) DoShortURL(url string) (string, string, error) {
+func (s *ShorterService) Shorten(url string) (string, error) {
 	for range maxHashAttempts {
 		hash := urlHash(url)
 
@@ -41,16 +41,16 @@ func (s *ShorterService) DoShortURL(url string) (string, string, error) {
 		case err == nil:
 			shortURL, err2 := s.shortURL(hash)
 			if err2 != nil {
-				return "", "", fmt.Errorf("failed to generate short url: %w", err2)
+				return "", fmt.Errorf("failed to generate short url: %w", err2)
 			}
-			return hash, shortURL, nil
+			return shortURL, nil
 		case errors.Is(err, repository.ErrAlreadyExists):
 			continue
 		default:
-			return "", "", fmt.Errorf("failed to save short url: %w", err)
+			return "", fmt.Errorf("failed to save short url: %w", err)
 		}
 	}
-	return "", "", fmt.Errorf("failed to save short url: %w", ErrHashCollision)
+	return "", fmt.Errorf("failed to save short url: %w", ErrHashCollision)
 }
 
 func (s *ShorterService) GetURL(shortURL string) (string, error) {

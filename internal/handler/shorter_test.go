@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -116,8 +118,11 @@ func TestServer_GetUrlHandler(t *testing.T) {
 
 			api := NewShorterAPI(shorterService)
 			originalURL := "https://google.com"
-			shortID, _, err := shorterService.DoShortURL(originalURL)
+			shortURL, err := shorterService.Shorten(originalURL)
 			require.NoError(t, err)
+			parsedURL, err := url.Parse(shortURL)
+			require.NoError(t, err)
+			shortID := strings.TrimPrefix(parsedURL.Path, "/")
 
 			if tt.id == "unknown" {
 				shortID = tt.id
@@ -135,4 +140,79 @@ func TestServer_GetUrlHandler(t *testing.T) {
 			assert.Equal(t, tt.want.location, result.Header.Get("Location"))
 		})
 	}
+}
+
+func TestServer_ShortenHandler(t *testing.T) {
+	type want struct {
+		code        int
+		contentType string
+		response    ShortenResponse
+	}
+	tests := []struct {
+		name        string
+		requestBody string
+		want        want
+	}{
+		{
+			name:        "success",
+			requestBody: `{"url":"http://google.com"}`,
+			want: want{
+				code:        http.StatusCreated,
+				contentType: "application/json",
+				response:    ShortenResponse{Result: "http://localhost:8080/x7kg9X5V"},
+			},
+		},
+		{
+			name:        "empty url",
+			requestBody: `{"url":""}`,
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
+			},
+		},
+		{
+			name:        "invalid json",
+			requestBody: `{"url":`,
+			want: want{
+				code:        http.StatusBadRequest,
+				contentType: "application/json",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			shorterService := &shorterServiceStub{
+				shortURL: "http://localhost:8080/x7kg9X5V",
+			}
+			api := NewShorterAPI(shorterService)
+
+			request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(tt.requestBody))
+			request.Header.Set("Content-Type", "application/json")
+			w := echotest.ContextConfig{Request: request}.ServeWithHandler(t, api.ShortenHandler)
+
+			result := w.Result()
+			defer result.Body.Close()
+
+			assert.Equal(t, tt.want.code, result.StatusCode)
+			assert.Equal(t, tt.want.contentType, result.Header.Get("Content-Type"))
+
+			if tt.want.code == http.StatusCreated {
+				var response ShortenResponse
+				require.NoError(t, json.NewDecoder(result.Body).Decode(&response))
+				assert.Equal(t, tt.want.response, response)
+			}
+		})
+	}
+}
+
+type shorterServiceStub struct {
+	shortURL string
+}
+
+func (s *shorterServiceStub) Shorten(string) (string, error) {
+	return s.shortURL, nil
+}
+
+func (s *shorterServiceStub) GetURL(string) (string, error) {
+	return "", nil
 }

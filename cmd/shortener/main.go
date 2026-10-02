@@ -19,7 +19,12 @@ func main() {
 // run init all dependencies and run server
 func run() error {
 	cfg := config.NewConfig()
-	db := repository.NewMemoryRepository()
+	db, err := repository.NewFileRepository(cfg.ShorterService.FileStoragePath)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
 	shortService := service.NewShorterService(db, cfg.ShorterService.ShortURLAddr)
 	shorterAPI := handler.NewShorterAPI(shortService)
 
