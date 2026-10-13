@@ -10,10 +10,21 @@ import (
 
 func TestNewConfig(t *testing.T) {
 
+	defaultDatabaseConfig := DatabaseConfig{
+		Dsn: "postgres://localhost:5432/pracktikum_shortener?sslmode=disable",
+	}
+	defaultServerConfig := ServerConfig{
+		Port: ":8080",
+	}
+	defaultShorterServiceConfig := ShorterServiceConfig{
+		ShortURLAddr:    "http://localhost:8080",
+		FileStoragePath: "storage.json",
+	}
 	tests := []struct {
 		name          string
 		args          []string
 		serverAddress string
+		dsn           string
 		baseURL       string
 		filePath      string
 		want          *Config
@@ -22,13 +33,9 @@ func TestNewConfig(t *testing.T) {
 			name: "default values",
 			args: nil,
 			want: &Config{
-				Server: &ServerConfig{
-					Port: ":8080",
-				},
-				ShorterService: &ShorterServiceConfig{
-					ShortURLAddr:    "http://localhost:8080",
-					FileStoragePath: "storage.json",
-				},
+				Server:         &defaultServerConfig,
+				ShorterService: &defaultShorterServiceConfig,
+				Database:       &defaultDatabaseConfig,
 			},
 		},
 		{
@@ -42,6 +49,7 @@ func TestNewConfig(t *testing.T) {
 					ShortURLAddr:    "https://google.com",
 					FileStoragePath: "storage.json",
 				},
+				Database: &defaultDatabaseConfig,
 			},
 		},
 		{
@@ -55,6 +63,7 @@ func TestNewConfig(t *testing.T) {
 					ShortURLAddr:    "http://example.com",
 					FileStoragePath: "storage.json",
 				},
+				Database: &defaultDatabaseConfig,
 			},
 		},
 		{
@@ -68,6 +77,7 @@ func TestNewConfig(t *testing.T) {
 					ShortURLAddr:    "http://localhost:8080",
 					FileStoragePath: "storage.json",
 				},
+				Database: &defaultDatabaseConfig,
 			},
 		},
 		{
@@ -81,6 +91,7 @@ func TestNewConfig(t *testing.T) {
 					ShortURLAddr:    "http://short.ly",
 					FileStoragePath: "storage.json",
 				},
+				Database: &defaultDatabaseConfig,
 			},
 		},
 		{
@@ -89,6 +100,7 @@ func TestNewConfig(t *testing.T) {
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
 				ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "storage.json"},
+				Database:       &defaultDatabaseConfig,
 			},
 		},
 		{
@@ -97,6 +109,7 @@ func TestNewConfig(t *testing.T) {
 			want: &Config{
 				Server:         &ServerConfig{Port: ":8080"},
 				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
+				Database:       &defaultDatabaseConfig,
 			},
 		},
 		{
@@ -106,6 +119,7 @@ func TestNewConfig(t *testing.T) {
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
 				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
+				Database:       &defaultDatabaseConfig,
 			},
 		},
 		{
@@ -116,18 +130,55 @@ func TestNewConfig(t *testing.T) {
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
 				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
+				Database:       &defaultDatabaseConfig,
 			},
 		},
 		{
 			name: "file storage flag",
 			args: []string{"-f=/tmp/shortener.json"},
-			want: &Config{Server: &ServerConfig{Port: ":8080"}, ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "/tmp/shortener.json"}},
+			want: &Config{Server: &ServerConfig{Port: ":8080"}, ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "/tmp/shortener.json"},
+				Database: &defaultDatabaseConfig},
 		},
 		{
 			name:     "file storage environment variable overrides flag",
 			args:     []string{"-f=/tmp/from-flag.json"},
 			filePath: "/tmp/from-env.json",
-			want:     &Config{Server: &ServerConfig{Port: ":8080"}, ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "/tmp/from-env.json"}},
+			want: &Config{Server: &ServerConfig{Port: ":8080"}, ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "/tmp/from-env.json"},
+				Database: &defaultDatabaseConfig},
+		},
+		{
+			name: "add database environment variable",
+			dsn:  "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable",
+			want: &Config{
+				Server:         &defaultServerConfig,
+				ShorterService: &defaultShorterServiceConfig,
+				Database: &DatabaseConfig{
+					Dsn: "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable",
+				},
+			},
+		},
+		{
+			name: "database environment variable overrides flag",
+			args: []string{"-d=postgres://postgres:postgres@localhost:5432/postgres_from_args"},
+			dsn:  "postgres://postgres:postgres@localhost/postgres?sslmode=disable",
+			want: &Config{
+				Server:         &defaultServerConfig,
+				ShorterService: &defaultShorterServiceConfig,
+				Database: &DatabaseConfig{
+					Dsn: "postgres://postgres:postgres@localhost/postgres?sslmode=disable",
+				},
+			},
+		},
+		{
+			name: "database config from args",
+			args: []string{"-d=postgres"},
+			want: &Config{
+				Server:         &defaultServerConfig,
+				ShorterService: &defaultShorterServiceConfig,
+				Database: &DatabaseConfig{
+					Dsn: "postgres",
+				},
+			},
 		},
 	}
 
@@ -136,6 +187,7 @@ func TestNewConfig(t *testing.T) {
 			t.Setenv("SERVER_ADDRESS", tt.serverAddress)
 			t.Setenv("BASE_URL", tt.baseURL)
 			t.Setenv("FILE_STORAGE_PATH", tt.filePath)
+			t.Setenv("DATABASE_DSN", tt.dsn)
 			setArgs(t, tt.args)
 			assert.Equal(t, tt.want, NewConfig())
 		})

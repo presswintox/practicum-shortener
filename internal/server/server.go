@@ -1,8 +1,11 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
+	"github.com/presswintox/practicum-shortener/internal/config/db"
 	"go.uber.org/zap"
 )
 
@@ -16,15 +19,17 @@ type Server struct {
 	echo       *echo.Echo
 	port       string
 	shorterAPI ShorterAPI
+	db         *db.Database
 }
 
-func NewServer(port string, shorterAPI ShorterAPI) *Server {
+func NewServer(port string, shorterAPI ShorterAPI, db *db.Database) *Server {
 	e := echo.New()
 
 	s := &Server{
 		echo:       e,
 		port:       port,
 		shorterAPI: shorterAPI,
+		db:         db,
 	}
 	s.setupMiddlewares()
 	s.setupRouters()
@@ -36,6 +41,8 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) setupRouters() {
+	s.echo.GET("/ping", s.pingHandler)
+
 	s.echo.GET("/:id", s.shorterAPI.GetURLHandler)
 	s.echo.POST("/", s.shorterAPI.DoShortURLHandler)
 
@@ -65,4 +72,13 @@ func (s *Server) setupMiddlewares() {
 
 	s.echo.Use(middleware.Gzip())
 	s.echo.Use(middleware.Decompress())
+}
+
+func (s *Server) pingHandler(c *echo.Context) error {
+	err := s.db.Ping()
+	if err != nil {
+		c.Logger().Error(err.Error())
+		return err
+	}
+	return c.String(http.StatusOK, "database is ready")
 }
