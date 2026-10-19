@@ -2,11 +2,12 @@ package repository
 
 import (
 	"context"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
-	_ "github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -32,14 +33,16 @@ func (s *PostgresTestSuite) SetupSuite() {
 	s.container = postgresContainer
 	testcontainers.CleanupContainer(s.T(), postgresContainer)
 	require.NoError(s.T(), err)
-
 	dsn, err := s.container.ConnectionString(s.ctx, "sslmode=disable")
-	require.NoError(s.T(), err)
-
-	cmd := exec.CommandContext(s.ctx, "migrate", "-database", dsn, "-path", "./migrations", "up")
-	cmd.Dir = filepath.Join("..", "..")
-	output, err := cmd.CombinedOutput()
-	require.NoErrorf(s.T(), err, "migrate up failed: %s", output)
+	migrationsPath, err := filepath.Abs(filepath.Join("..", "..", "migrations"))
+	migrator, err := migrate.New("file://"+migrationsPath, dsn)
+	t := s.T()
+	t.Cleanup(func() {
+		sourceErr, databaseErr := migrator.Close()
+		assert.NoError(t, sourceErr)
+		assert.NoError(t, databaseErr)
+	})
+	require.NoError(t, migrator.Up())
 }
 
 func (s *PostgresTestSuite) TestSaveAndGet() {
