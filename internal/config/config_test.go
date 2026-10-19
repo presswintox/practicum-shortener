@@ -11,14 +11,14 @@ import (
 func TestNewConfig(t *testing.T) {
 
 	defaultDatabaseConfig := DatabaseConfig{
-		Dsn: "postgres://localhost:5432/pracktikum_shortener?sslmode=disable",
+		Dsn: "",
 	}
 	defaultServerConfig := ServerConfig{
 		Port: ":8080",
 	}
 	defaultShorterServiceConfig := ShorterServiceConfig{
 		ShortURLAddr:    "http://localhost:8080",
-		FileStoragePath: "storage.json",
+		FileStoragePath: "",
 	}
 	tests := []struct {
 		name          string
@@ -47,7 +47,7 @@ func TestNewConfig(t *testing.T) {
 				},
 				ShorterService: &ShorterServiceConfig{
 					ShortURLAddr:    "https://google.com",
-					FileStoragePath: "storage.json",
+					FileStoragePath: "",
 				},
 				Database: &defaultDatabaseConfig,
 			},
@@ -61,7 +61,7 @@ func TestNewConfig(t *testing.T) {
 				},
 				ShorterService: &ShorterServiceConfig{
 					ShortURLAddr:    "http://example.com",
-					FileStoragePath: "storage.json",
+					FileStoragePath: "",
 				},
 				Database: &defaultDatabaseConfig,
 			},
@@ -75,7 +75,7 @@ func TestNewConfig(t *testing.T) {
 				},
 				ShorterService: &ShorterServiceConfig{
 					ShortURLAddr:    "http://localhost:8080",
-					FileStoragePath: "storage.json",
+					FileStoragePath: "",
 				},
 				Database: &defaultDatabaseConfig,
 			},
@@ -89,7 +89,7 @@ func TestNewConfig(t *testing.T) {
 				},
 				ShorterService: &ShorterServiceConfig{
 					ShortURLAddr:    "http://short.ly",
-					FileStoragePath: "storage.json",
+					FileStoragePath: "",
 				},
 				Database: &defaultDatabaseConfig,
 			},
@@ -99,7 +99,7 @@ func TestNewConfig(t *testing.T) {
 			serverAddress: ":9090",
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
-				ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: "storage.json"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "http://localhost:8080", FileStoragePath: ""},
 				Database:       &defaultDatabaseConfig,
 			},
 		},
@@ -108,7 +108,7 @@ func TestNewConfig(t *testing.T) {
 			baseURL: "https://short.example.com",
 			want: &Config{
 				Server:         &ServerConfig{Port: ":8080"},
-				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: ""},
 				Database:       &defaultDatabaseConfig,
 			},
 		},
@@ -118,7 +118,7 @@ func TestNewConfig(t *testing.T) {
 			baseURL:       "https://short.example.com",
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
-				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: ""},
 				Database:       &defaultDatabaseConfig,
 			},
 		},
@@ -129,7 +129,7 @@ func TestNewConfig(t *testing.T) {
 			baseURL:       "https://short.example.com",
 			want: &Config{
 				Server:         &ServerConfig{Port: ":9090"},
-				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: "storage.json"},
+				ShorterService: &ShorterServiceConfig{ShortURLAddr: "https://short.example.com", FileStoragePath: ""},
 				Database:       &defaultDatabaseConfig,
 			},
 		},

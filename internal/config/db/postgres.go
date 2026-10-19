@@ -9,7 +9,7 @@ import (
 )
 
 type Database struct {
-	conn *sql.DB
+	Conn *sql.DB
 }
 
 func NewPostgresDatabase(dsn string) (*Database, error) {
@@ -20,13 +20,13 @@ func NewPostgresDatabase(dsn string) (*Database, error) {
 	return &Database{db}, nil
 }
 func (db *Database) Close() error {
-	return db.conn.Close()
+	return db.Conn.Close()
 }
 
 func (db *Database) Ping() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	if err := db.conn.PingContext(ctx); err != nil {
+	if err := db.Conn.PingContext(ctx); err != nil {
 		return err
 	}
 	return nil

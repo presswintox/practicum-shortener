@@ -4,7 +4,6 @@ import (
 	"log"
 
 	"github.com/presswintox/practicum-shortener/internal/config"
-	"github.com/presswintox/practicum-shortener/internal/config/db"
 	"github.com/presswintox/practicum-shortener/internal/handler"
 	"github.com/presswintox/practicum-shortener/internal/repository"
 	"github.com/presswintox/practicum-shortener/internal/server"
@@ -21,22 +20,37 @@ func main() {
 func run() error {
 	cfg := config.NewConfig()
 
-	postgres, err := db.NewPostgresDatabase(cfg.Database.Dsn)
-	if err != nil {
-		return err
-	}
-	defer postgres.Close()
+	var (
+		repo         service.ShorterRepository
+		infraService server.InfraService
+	)
 
-	repo, err := repository.NewFileRepository(cfg.ShorterService.FileStoragePath)
-	if err != nil {
-		return err
+	switch cfg.StorageIs() {
+	case config.StoragePostgres:
+		postgresRepo, err := repository.NewPostgresRepository(cfg.Database.Dsn)
+		if err != nil {
+			return err
+		}
+		defer postgresRepo.Close()
+
+		repo = postgresRepo
+		infraService = service.NewInfraService(postgresRepo)
+	case config.StorageFile:
+		fileRepo, err := repository.NewFileRepository(cfg.ShorterService.FileStoragePath)
+		if err != nil {
+			return err
+		}
+		defer fileRepo.Close()
+
+		repo = fileRepo
+	default:
+		repo = repository.NewMemoryRepository()
 	}
-	defer repo.Close()
 
 	shortService := service.NewShorterService(repo, cfg.ShorterService.ShortURLAddr)
 	shorterAPI := handler.NewShorterAPI(shortService)
 
-	srv := server.NewServer(cfg.Server.Port, shorterAPI, postgres)
+	srv := server.NewServer(cfg.Server.Port, shorterAPI, infraService)
 
 	return srv.Start()
 }

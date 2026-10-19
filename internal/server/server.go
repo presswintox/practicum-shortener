@@ -5,7 +5,6 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
-	"github.com/presswintox/practicum-shortener/internal/config/db"
 	"go.uber.org/zap"
 )
 
@@ -15,21 +14,25 @@ type ShorterAPI interface {
 	ShortenHandler(c *echo.Context) error
 }
 
-type Server struct {
-	echo       *echo.Echo
-	port       string
-	shorterAPI ShorterAPI
-	db         *db.Database
+type InfraService interface {
+	Ping() error
 }
 
-func NewServer(port string, shorterAPI ShorterAPI, db *db.Database) *Server {
+type Server struct {
+	echo         *echo.Echo
+	port         string
+	shorterAPI   ShorterAPI
+	infraService InfraService
+}
+
+func NewServer(port string, shorterAPI ShorterAPI, infraService InfraService) *Server {
 	e := echo.New()
 
 	s := &Server{
-		echo:       e,
-		port:       port,
-		shorterAPI: shorterAPI,
-		db:         db,
+		echo:         e,
+		port:         port,
+		shorterAPI:   shorterAPI,
+		infraService: infraService,
 	}
 	s.setupMiddlewares()
 	s.setupRouters()
@@ -75,7 +78,10 @@ func (s *Server) setupMiddlewares() {
 }
 
 func (s *Server) pingHandler(c *echo.Context) error {
-	err := s.db.Ping()
+	if s.infraService == nil {
+		return c.String(http.StatusInternalServerError, "database not configurated")
+	}
+	err := s.infraService.Ping()
 	if err != nil {
 		c.Logger().Error(err.Error())
 		return err

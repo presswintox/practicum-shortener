@@ -11,12 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type URLRecord struct {
-	UUID        string `json:"uuid"`
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
-}
-
 type FileRepository struct {
 	mu      sync.Mutex
 	records map[string]URLRecord
