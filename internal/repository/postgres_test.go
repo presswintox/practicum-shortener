@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	_ "github.com/golang-migrate/migrate/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
