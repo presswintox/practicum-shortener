@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/labstack/echo/v5"
+	"github.com/presswintox/practicum-shortener/internal/config/db"
 	"github.com/presswintox/practicum-shortener/internal/handler"
 	"github.com/presswintox/practicum-shortener/internal/repository"
 	"github.com/presswintox/practicum-shortener/internal/service"
@@ -18,10 +19,11 @@ import (
 
 func TestGzipCompression(t *testing.T) {
 	const shortURLAddr = "http://localhost:8080"
+	postgres, _ := db.NewPostgresDatabase("")
 
 	shorterService := service.NewShorterService(repository.NewMemoryRepository(), shortURLAddr)
 	api := handler.NewShorterAPI(shorterService)
-	s := NewServer(":0", api)
+	s := NewServer(":0", api, postgres)
 	requestBody := `{"url":"https://example.com"}`
 
 	t.Run("accepts gzip request", func(t *testing.T) {
