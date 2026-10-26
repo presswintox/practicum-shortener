@@ -32,6 +32,9 @@ func run() error {
 			return err
 		}
 		defer postgresRepo.Close()
+		if err := postgresRepo.Migrate(); err != nil {
+			return err
+		}
 
 		repo = postgresRepo
 		infraService = service.NewInfraService(postgresRepo)

@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/presswintox/practicum-shortener/internal/config/db"
+	"github.com/presswintox/practicum-shortener/migrations"
 )
 
 type PostgresRepository struct {
-	mu sync.Mutex
-	db *db.Database
+	mu  sync.Mutex
+	db  *db.Database
+	dsn string
 }
 
 func NewPostgresRepository(dsn string) (*PostgresRepository, error) {
@@ -20,7 +25,7 @@ func NewPostgresRepository(dsn string) (*PostgresRepository, error) {
 		return nil, fmt.Errorf("error init postgres: %w", err)
 	}
 
-	repo := &PostgresRepository{db: postgres}
+	repo := &PostgresRepository{db: postgres, dsn: dsn}
 	return repo, nil
 }
 
@@ -57,4 +62,29 @@ func (r *PostgresRepository) Close() error {
 
 func (r *PostgresRepository) Ping() error {
 	return r.db.Ping()
+}
+
+func (r *PostgresRepository) Migrate() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	source, err := iofs.New(migrations.Files, ".")
+	if err != nil {
+		return fmt.Errorf("failed to create migrations source: %w", err)
+	}
+
+	migrator, err := migrate.NewWithSourceInstance("iofs", source, r.dsn)
+	if err != nil {
+		_ = source.Close()
+		return fmt.Errorf("failed to create migrator: %w", err)
+	}
+
+	migrateErr := migrator.Up()
+	migrator.Close()
+
+	if migrateErr != nil && !errors.Is(migrateErr, migrate.ErrNoChange) {
+		return fmt.Errorf("failed to run migrations: %w", migrateErr)
+	}
+
+	return nil
 }
