@@ -11,12 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type URLRecord struct {
-	UUID        string `json:"uuid"`
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
-}
-
 type FileRepository struct {
 	mu      sync.Mutex
 	records map[string]URLRecord
@@ -85,12 +79,46 @@ func (r *FileRepository) Load() error {
 	return scanner.Err()
 }
 
+func (r *FileRepository) BatchSave(shortURLs map[string]string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	records := make([]URLRecord, 0, len(shortURLs))
+	for id, url := range shortURLs {
+		if _, ok := r.records[id]; ok {
+			return fmt.Errorf("%w: %q", ErrAlreadyExists, id)
+		}
+		record := URLRecord{
+			UUID:        uuid.NewString(),
+			ShortURL:    id,
+			OriginalURL: url,
+		}
+		records = append(records, record)
+	}
+	if err := r.saveRecords(records); err != nil {
+		return fmt.Errorf("failed to save file storage: %w", err)
+	}
+	for _, record := range records {
+		r.records[record.ShortURL] = record
+	}
+	return nil
+}
+
 func (r *FileRepository) saveRecord(record URLRecord) error {
+	return r.saveRecords([]URLRecord{record})
+}
+
+func (r *FileRepository) saveRecords(records []URLRecord) error {
+	if len(records) == 0 {
+		return nil
+	}
 	if _, err := r.file.Seek(0, io.SeekEnd); err != nil {
 		return err
 	}
-	if err := json.NewEncoder(r.file).Encode(record); err != nil {
-		return err
+	encoder := json.NewEncoder(r.file)
+	for _, record := range records {
+		if err := encoder.Encode(record); err != nil {
+			return err
+		}
 	}
 	return r.file.Sync()
 }
