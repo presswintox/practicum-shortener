@@ -118,6 +118,6 @@ func (s *ShorterAPI) ShortenBatchHandler(c *echo.Context) error {
 			ShortURL:      shortURL,
 		})
 	}
-	return c.JSON(http.StatusOK, res)
+	return c.JSON(http.StatusCreated, res)
 
 }

@@ -231,7 +231,7 @@ func TestServer_ShortenBatchHandler(t *testing.T) {
 		wantCode   int
 		wantCalls  int
 	}{
-		{name: "success", body: `[{"correlation_id":"first","original_url":"https://example.com/1"},{"correlation_id":"second","original_url":"https://example.com/2"}]`, wantCode: http.StatusOK, wantCalls: 1},
+		{name: "success", body: `[{"correlation_id":"first","original_url":"https://example.com/1"},{"correlation_id":"second","original_url":"https://example.com/2"}]`, wantCode: http.StatusCreated, wantCalls: 1},
 		{name: "service error", body: `[{"correlation_id":"first","original_url":"https://example.com/1"},{"correlation_id":"second","original_url":"https://example.com/2"}]`, serviceErr: errors.New("storage unavailable"), wantCode: http.StatusInternalServerError, wantCalls: 1},
 		{name: "invalid JSON", body: `[{"correlation_id":`, wantCode: http.StatusBadRequest},
 		{name: "wrong JSON shape", body: `{"correlation_id":"first"}`, wantCode: http.StatusBadRequest},
@@ -252,7 +252,7 @@ func TestServer_ShortenBatchHandler(t *testing.T) {
 			assert.Equal(t, test.wantCode, w.Code)
 			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
 			assert.Equal(t, test.wantCalls, calls)
-			if test.wantCode == http.StatusOK {
+			if test.wantCode == http.StatusCreated {
 				var response []ShortenBatchItemResponse
 				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 				assert.ElementsMatch(t, []ShortenBatchItemResponse{
@@ -271,7 +271,7 @@ func TestServer_ShortenBatchHandlerStoresURLs(t *testing.T) {
 	request := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(`[{"correlation_id":"first","original_url":"https://example.com/1"},{"correlation_id":"second","original_url":"https://example.com/2"}]`))
 	request.Header.Set("Content-Type", "application/json")
 	w := echotest.ContextConfig{Request: request}.ServeWithHandler(t, api.ShortenBatchHandler)
-	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, http.StatusCreated, w.Code)
 	var response []ShortenBatchItemResponse
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 	require.Len(t, response, 2)
