@@ -12,9 +12,10 @@ import (
 )
 
 type FileRepository struct {
-	mu      sync.Mutex
-	records map[string]URLRecord
-	file    *os.File
+	mu              sync.Mutex
+	records         map[string]URLRecord
+	shortByOriginal map[string]string
+	file            *os.File
 }
 
 func NewFileRepository(path string) (*FileRepository, error) {
@@ -22,7 +23,11 @@ func NewFileRepository(path string) (*FileRepository, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening file %s: %w", path, err)
 	}
-	db := &FileRepository{file: file, records: make(map[string]URLRecord)}
+	db := &FileRepository{
+		file:            file,
+		records:         make(map[string]URLRecord),
+		shortByOriginal: make(map[string]string),
+	}
 	if err = db.Load(); err != nil {
 		return nil, fmt.Errorf("error loading file %s: %w", path, err)
 	}
@@ -33,6 +38,9 @@ func (r *FileRepository) Save(id, value string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if _, exists := r.shortByOriginal[value]; exists {
+		return ErrOriginalURLExists
+	}
 	if _, ok := r.records[id]; ok {
 		return fmt.Errorf("%w: %q", ErrAlreadyExists, id)
 	}
@@ -46,6 +54,7 @@ func (r *FileRepository) Save(id, value string) error {
 		return fmt.Errorf("failed to save file storage: %w", err)
 	}
 	r.records[id] = record
+	r.shortByOriginal[value] = id
 
 	return nil
 }
@@ -58,6 +67,15 @@ func (r *FileRepository) Get(id string) (string, error) {
 		return record.OriginalURL, nil
 	}
 	return "", fmt.Errorf("%w: %q", ErrNotFound, id)
+}
+
+func (r *FileRepository) GetByOriginalURL(originalURL string) (string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if id, ok := r.shortByOriginal[originalURL]; ok {
+		return id, nil
+	}
+	return "", ErrNotFound
 }
 
 func (r *FileRepository) Load() error {
@@ -75,6 +93,7 @@ func (r *FileRepository) Load() error {
 			return err
 		}
 		r.records[record.ShortURL] = record
+		r.shortByOriginal[record.OriginalURL] = record.ShortURL
 	}
 	return scanner.Err()
 }
@@ -99,6 +118,7 @@ func (r *FileRepository) BatchSave(shortURLs map[string]string) error {
 	}
 	for _, record := range records {
 		r.records[record.ShortURL] = record
+		r.shortByOriginal[record.OriginalURL] = record.ShortURL
 	}
 	return nil
 }

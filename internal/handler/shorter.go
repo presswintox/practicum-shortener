@@ -1,10 +1,12 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/presswintox/practicum-shortener/internal/repository"
 )
 
 type ShorterService interface {
@@ -37,6 +39,9 @@ func (s *ShorterAPI) DoShortURLHandler(c *echo.Context) error {
 	}
 
 	shortURL, err := s.service.Shorten(url)
+	if errors.Is(err, repository.ErrOriginalURLExists) {
+		return c.String(http.StatusConflict, shortURL)
+	}
 	if err != nil {
 		c.Logger().Error(err.Error())
 		return echo.ErrInternalServerError
@@ -77,6 +82,9 @@ func (s *ShorterAPI) ShortenHandler(c *echo.Context) error {
 	}
 
 	shortURL, err := s.service.Shorten(body.URL)
+	if errors.Is(err, repository.ErrOriginalURLExists) {
+		return c.JSON(http.StatusConflict, ShortenResponse{Result: shortURL})
+	}
 	if err != nil {
 		c.Logger().Error(err.Error())
 		return echo.ErrInternalServerError

@@ -6,6 +6,7 @@ import "errors"
 
 var ErrNotFound = errors.New("shorter url not found")
 var ErrAlreadyExists = errors.New("shorter url already exists")
+var ErrOriginalURLExists = errors.New("original url already exists")
 
 type URLRecord struct {
 	UUID          string `json:"uuid"`

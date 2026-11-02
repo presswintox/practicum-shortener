@@ -143,6 +143,50 @@ func TestServer_GetUrlHandler(t *testing.T) {
 	}
 }
 
+func TestServer_DoShortURLHandlerConflict(t *testing.T) {
+	shorter := service.NewShorterService(repository.NewMemoryRepository(), "http://localhost:8080")
+	api := NewShorterAPI(shorter)
+	const original = "https://example.com"
+
+	first := echotest.ContextConfig{
+		Request: httptest.NewRequest(http.MethodPost, "/", strings.NewReader(original)),
+	}.ServeWithHandler(t, api.DoShortURLHandler)
+	require.Equal(t, http.StatusCreated, first.Code)
+	require.NotEmpty(t, first.Body.String())
+
+	duplicate := echotest.ContextConfig{
+		Request: httptest.NewRequest(http.MethodPost, "/", strings.NewReader(original)),
+	}.ServeWithHandler(t, api.DoShortURLHandler)
+
+	assert.Equal(t, http.StatusConflict, duplicate.Code)
+	assert.Equal(t, "text/plain; charset=UTF-8", duplicate.Header().Get("Content-Type"))
+	assert.Equal(t, first.Body.String(), duplicate.Body.String())
+}
+
+func TestServer_ShortenHandlerConflict(t *testing.T) {
+	shorter := service.NewShorterService(repository.NewMemoryRepository(), "http://localhost:8080")
+	api := NewShorterAPI(shorter)
+	const body = `{"url":"https://example.com"}`
+
+	request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	first := echotest.ContextConfig{Request: request}.ServeWithHandler(t, api.ShortenHandler)
+	require.Equal(t, http.StatusCreated, first.Code)
+	var created ShortenResponse
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &created))
+	require.NotEmpty(t, created.Result)
+
+	request = httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	duplicate := echotest.ContextConfig{Request: request}.ServeWithHandler(t, api.ShortenHandler)
+
+	assert.Equal(t, http.StatusConflict, duplicate.Code)
+	assert.Equal(t, "application/json", duplicate.Header().Get("Content-Type"))
+	var existing ShortenResponse
+	require.NoError(t, json.Unmarshal(duplicate.Body.Bytes(), &existing))
+	assert.Equal(t, created.Result, existing.Result)
+}
+
 func TestServer_ShortenHandler(t *testing.T) {
 	type want struct {
 		code        int

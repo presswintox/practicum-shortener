@@ -9,12 +9,11 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/presswintox/practicum-shortener/internal/config/db"
 	"github.com/presswintox/practicum-shortener/migrations"
 )
-
-const postgresUniqueViolation = "23505"
 
 type PostgresRepository struct {
 	mu  sync.Mutex
@@ -38,6 +37,13 @@ func (r *PostgresRepository) Save(id, value string) error {
 
 	_, err := r.db.Conn.Exec("INSERT INTO short_links (original_url, short_url) VALUES ($1, $2)", value, id)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
+			if pgErr.ConstraintName == "short_links_original_url_key" {
+				return ErrOriginalURLExists
+			}
+			return fmt.Errorf("%w: %q: %w", ErrAlreadyExists, id, err)
+		}
 		return fmt.Errorf("failed to save postgres: %w", err)
 	}
 	return nil
@@ -61,7 +67,7 @@ func (r *PostgresRepository) BatchSave(urls map[string]string) error {
 		_, err := tx.Exec("INSERT INTO short_links (original_url, short_url) VALUES ($1, $2)", url, id)
 		if err != nil {
 			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == postgresUniqueViolation {
+			if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
 				return fmt.Errorf("%w: %q: %w", ErrAlreadyExists, id, err)
 			}
 			return fmt.Errorf("failed to batch save postgres: %w", err)
@@ -91,6 +97,18 @@ func (r *PostgresRepository) Get(id string) (string, error) {
 
 func (r *PostgresRepository) Close() error {
 	return r.db.Close()
+}
+
+func (r *PostgresRepository) GetByOriginalURL(originalURL string) (string, error) {
+	var shortURL string
+	err := r.db.Conn.QueryRow("SELECT short_url FROM short_links WHERE original_url = $1", originalURL).Scan(&shortURL)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("failed to find existing short url: %w", err)
+	}
+	return shortURL, nil
 }
 
 func (r *PostgresRepository) Ping() error {

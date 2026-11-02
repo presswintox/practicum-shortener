@@ -22,6 +22,7 @@ var ErrHashCollision = errors.New("failed to generate unique short url")
 type ShorterRepository interface {
 	Save(shortURL, url string) error
 	Get(shortURL string) (string, error)
+	GetByOriginalURL(originalURL string) (string, error)
 	BatchSave(shortURLs map[string]string) error
 }
 type ShorterService struct {
@@ -45,6 +46,16 @@ func (s *ShorterService) Shorten(url string) (string, error) {
 				return "", fmt.Errorf("failed to generate short url: %w", err2)
 			}
 			return shortURL, nil
+		case errors.Is(err, repository.ErrOriginalURLExists):
+			existing, lookupErr := s.db.GetByOriginalURL(url)
+			if lookupErr != nil {
+				return "", fmt.Errorf("failed to find existing short url: %w", lookupErr)
+			}
+			shortURL, buildErr := s.shortURL(existing)
+			if buildErr != nil {
+				return "", fmt.Errorf("failed to generate short url: %w", buildErr)
+			}
+			return shortURL, repository.ErrOriginalURLExists
 		case errors.Is(err, repository.ErrAlreadyExists):
 			continue
 		default:
