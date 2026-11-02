@@ -22,6 +22,7 @@ var ErrHashCollision = errors.New("failed to generate unique short url")
 type ShorterRepository interface {
 	Save(shortURL, url string) error
 	Get(shortURL string) (string, error)
+	BatchSave(shortURLs map[string]string) error
 }
 type ShorterService struct {
 	db           ShorterRepository
@@ -82,4 +83,39 @@ func urlHash(longURL string) string {
 		urlLength = len(encoded)
 	}
 	return encoded[:urlLength]
+}
+
+type Url struct {
+	corrID string
+	hash   string
+	url    string
+}
+
+func (s *ShorterService) ShortenBatch(urls map[string]string) (map[string]string, error) {
+	for range maxHashAttempts {
+		urlsToSave := make(map[string]string, len(urls))
+		result := make(map[string]string, len(urls))
+		for corrID, url := range urls {
+			hash := urlHash(url)
+			urlsToSave[hash] = url
+			shortURL, err := s.shortURL(hash)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate short url: %w", err)
+			}
+			result[corrID] = shortURL
+		}
+		if len(urlsToSave) != len(urls) {
+			continue
+		}
+		err := s.db.BatchSave(urlsToSave)
+		switch {
+		case err == nil:
+			return result, nil
+		case errors.Is(err, repository.ErrAlreadyExists):
+			continue
+		default:
+			return nil, fmt.Errorf("failed to save short url: %w", err)
+		}
+	}
+	return nil, fmt.Errorf("failed to save short url: %w", ErrHashCollision)
 }

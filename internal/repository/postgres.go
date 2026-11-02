@@ -9,9 +9,12 @@ import (
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/presswintox/practicum-shortener/internal/config/db"
 	"github.com/presswintox/practicum-shortener/migrations"
 )
+
+const postgresUniqueViolation = "23505"
 
 type PostgresRepository struct {
 	mu  sync.Mutex
@@ -36,6 +39,36 @@ func (r *PostgresRepository) Save(id, value string) error {
 	_, err := r.db.Conn.Exec("INSERT INTO short_links (original_url, short_url) VALUES ($1, $2)", value, id)
 	if err != nil {
 		return fmt.Errorf("failed to save postgres: %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresRepository) BatchSave(urls map[string]string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if len(urls) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.Conn.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin batch save: %w", err)
+	}
+	defer tx.Rollback()
+
+	for id, url := range urls {
+		_, err := tx.Exec("INSERT INTO short_links (original_url, short_url) VALUES ($1, $2)", url, id)
+		if err != nil {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == postgresUniqueViolation {
+				return fmt.Errorf("%w: %q: %w", ErrAlreadyExists, id, err)
+			}
+			return fmt.Errorf("failed to batch save postgres: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit batch save: %w", err)
 	}
 	return nil
 }

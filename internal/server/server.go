@@ -12,6 +12,7 @@ type ShorterAPI interface {
 	DoShortURLHandler(c *echo.Context) error
 	GetURLHandler(c *echo.Context) error
 	ShortenHandler(c *echo.Context) error
+	ShortenBatchHandler(c *echo.Context) error
 }
 
 type InfraService interface {
@@ -51,6 +52,7 @@ func (s *Server) setupRouters() {
 
 	api := s.echo.Group("/api")
 	api.POST("/shorten", s.shorterAPI.ShortenHandler)
+	api.POST("/shorten/batch", s.shorterAPI.ShortenBatchHandler)
 }
 func (s *Server) setupMiddlewares() {
 	logger, _ := zap.NewProduction()

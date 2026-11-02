@@ -34,3 +34,21 @@ func (r *MemoryRepository) Get(id string) (string, error) {
 	}
 	return url, nil
 }
+
+func (r *MemoryRepository) BatchSave(urls map[string]string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	addedIDs := make([]string, 0, len(urls))
+	for id, url := range urls {
+		if _, exists := r.db[id]; exists {
+			for _, addedID := range addedIDs {
+				delete(r.db, addedID)
+			}
+			return fmt.Errorf("%w: %q", ErrAlreadyExists, id)
+		}
+		r.db[id] = url
+		addedIDs = append(addedIDs, id)
+	}
+	return nil
+}
