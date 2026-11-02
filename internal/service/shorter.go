@@ -96,12 +96,6 @@ func urlHash(longURL string) string {
 	return encoded[:urlLength]
 }
 
-type Url struct {
-	corrID string
-	hash   string
-	url    string
-}
-
 func (s *ShorterService) ShortenBatch(urls map[string]string) (map[string]string, error) {
 	for range maxHashAttempts {
 		urlsToSave := make(map[string]string, len(urls))

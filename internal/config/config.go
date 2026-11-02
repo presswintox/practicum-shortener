@@ -7,8 +7,8 @@ import (
 
 const (
 	StoragePostgres string = "postgres"
-	StorageFile            = "file"
-	StorageMemory          = "memory"
+	StorageFile     string = "file"
+	StorageMemory   string = "memory"
 )
 
 type Config struct {
