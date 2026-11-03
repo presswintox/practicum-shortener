@@ -1,15 +1,18 @@
 package handler
 
 import (
+	"errors"
 	"io"
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/presswintox/practicum-shortener/internal/repository"
 )
 
 type ShorterService interface {
 	Shorten(url string) (string, error)
 	GetURL(shortURL string) (string, error)
+	ShortenBatch(urls map[string]string) (map[string]string, error)
 }
 type ShorterAPI struct {
 	service ShorterService
@@ -36,6 +39,9 @@ func (s *ShorterAPI) DoShortURLHandler(c *echo.Context) error {
 	}
 
 	shortURL, err := s.service.Shorten(url)
+	if errors.Is(err, repository.ErrOriginalURLExists) {
+		return c.String(http.StatusConflict, shortURL)
+	}
 	if err != nil {
 		c.Logger().Error(err.Error())
 		return echo.ErrInternalServerError
@@ -76,9 +82,55 @@ func (s *ShorterAPI) ShortenHandler(c *echo.Context) error {
 	}
 
 	shortURL, err := s.service.Shorten(body.URL)
+	if errors.Is(err, repository.ErrOriginalURLExists) {
+		return c.JSON(http.StatusConflict, ShortenResponse{Result: shortURL})
+	}
 	if err != nil {
 		c.Logger().Error(err.Error())
 		return echo.ErrInternalServerError
 	}
 	return c.JSON(http.StatusCreated, ShortenResponse{Result: shortURL})
+}
+
+type ShortenBatchItemRequest struct {
+	CorrelationID string `json:"correlation_id"`
+	OriginalURL   string `json:"original_url"`
+}
+
+type ShortenBatchItemResponse struct {
+	CorrelationID string `json:"correlation_id"`
+	ShortURL      string `json:"short_url"`
+}
+
+func (s *ShorterAPI) ShortenBatchHandler(c *echo.Context) error {
+	var body []ShortenBatchItemRequest
+	if err := c.Bind(&body); err != nil {
+		c.Logger().Info(err.Error())
+		return echo.ErrBadRequest
+	}
+
+	if len(body) == 0 {
+		c.Logger().Info("empty body")
+		return echo.ErrBadRequest
+	}
+
+	items := map[string]string{}
+	for _, item := range body {
+		items[item.CorrelationID] = item.OriginalURL
+	}
+
+	shortUrls, err := s.service.ShortenBatch(items)
+	if err != nil {
+		c.Logger().Error(err.Error())
+		return echo.ErrInternalServerError
+	}
+	res := make([]ShortenBatchItemResponse, 0, len(shortUrls))
+	for id, shortURL := range shortUrls {
+		res = append(res, ShortenBatchItemResponse{
+			CorrelationID: id,
+			ShortURL:      shortURL,
+		})
+	}
+	return c.JSON(http.StatusCreated, res)
+
 }

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -142,6 +143,50 @@ func TestServer_GetUrlHandler(t *testing.T) {
 	}
 }
 
+func TestServer_DoShortURLHandlerConflict(t *testing.T) {
+	shorter := service.NewShorterService(repository.NewMemoryRepository(), "http://localhost:8080")
+	api := NewShorterAPI(shorter)
+	const original = "https://example.com"
+
+	first := echotest.ContextConfig{
+		Request: httptest.NewRequest(http.MethodPost, "/", strings.NewReader(original)),
+	}.ServeWithHandler(t, api.DoShortURLHandler)
+	require.Equal(t, http.StatusCreated, first.Code)
+	require.NotEmpty(t, first.Body.String())
+
+	duplicate := echotest.ContextConfig{
+		Request: httptest.NewRequest(http.MethodPost, "/", strings.NewReader(original)),
+	}.ServeWithHandler(t, api.DoShortURLHandler)
+
+	assert.Equal(t, http.StatusConflict, duplicate.Code)
+	assert.Equal(t, "text/plain; charset=UTF-8", duplicate.Header().Get("Content-Type"))
+	assert.Equal(t, first.Body.String(), duplicate.Body.String())
+}
+
+func TestServer_ShortenHandlerConflict(t *testing.T) {
+	shorter := service.NewShorterService(repository.NewMemoryRepository(), "http://localhost:8080")
+	api := NewShorterAPI(shorter)
+	const body = `{"url":"https://example.com"}`
+
+	request := httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	first := echotest.ContextConfig{Request: request}.ServeWithHandler(t, api.ShortenHandler)
+	require.Equal(t, http.StatusCreated, first.Code)
+	var created ShortenResponse
+	require.NoError(t, json.Unmarshal(first.Body.Bytes(), &created))
+	require.NotEmpty(t, created.Result)
+
+	request = httptest.NewRequest(http.MethodPost, "/api/shorten", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	duplicate := echotest.ContextConfig{Request: request}.ServeWithHandler(t, api.ShortenHandler)
+
+	assert.Equal(t, http.StatusConflict, duplicate.Code)
+	assert.Equal(t, "application/json", duplicate.Header().Get("Content-Type"))
+	var existing ShortenResponse
+	require.NoError(t, json.Unmarshal(duplicate.Body.Bytes(), &existing))
+	assert.Equal(t, created.Result, existing.Result)
+}
+
 func TestServer_ShortenHandler(t *testing.T) {
 	type want struct {
 		code        int
@@ -206,7 +251,8 @@ func TestServer_ShortenHandler(t *testing.T) {
 }
 
 type shorterServiceStub struct {
-	shortURL string
+	shortURL     string
+	shortenBatch func(map[string]string) (map[string]string, error)
 }
 
 func (s *shorterServiceStub) Shorten(string) (string, error) {
@@ -215,4 +261,76 @@ func (s *shorterServiceStub) Shorten(string) (string, error) {
 
 func (s *shorterServiceStub) GetURL(string) (string, error) {
 	return "", nil
+}
+
+func (s *shorterServiceStub) ShortenBatch(urls map[string]string) (map[string]string, error) {
+	return s.shortenBatch(urls)
+}
+
+func TestServer_ShortenBatchHandler(t *testing.T) {
+	tests := []struct {
+		name       string
+		body       string
+		serviceErr error
+		wantCode   int
+		wantCalls  int
+	}{
+		{name: "success", body: `[{"correlation_id":"first","original_url":"https://example.com/1"},{"correlation_id":"second","original_url":"https://example.com/2"}]`, wantCode: http.StatusCreated, wantCalls: 1},
+		{name: "service error", body: `[{"correlation_id":"first","original_url":"https://example.com/1"},{"correlation_id":"second","original_url":"https://example.com/2"}]`, serviceErr: errors.New("storage unavailable"), wantCode: http.StatusInternalServerError, wantCalls: 1},
+		{name: "invalid JSON", body: `[{"correlation_id":`, wantCode: http.StatusBadRequest},
+		{name: "wrong JSON shape", body: `{"correlation_id":"first"}`, wantCode: http.StatusBadRequest},
+		{name: "empty body", body: "", wantCode: http.StatusBadRequest},
+		{name: "empty batch", body: `[]`, wantCode: http.StatusBadRequest},
+		{name: "null batch", body: `null`, wantCode: http.StatusBadRequest},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			calls := 0
+			stub := &shorterServiceStub{shortenBatch: func(urls map[string]string) (map[string]string, error) {
+				calls++
+				assert.Equal(t, map[string]string{"first": "https://example.com/1", "second": "https://example.com/2"}, urls)
+				return map[string]string{"first": "http://localhost:8080/first123", "second": "http://localhost:8080/second12"}, test.serviceErr
+			}}
+			api := NewShorterAPI(stub)
+			request := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			w := echotest.ContextConfig{Request: request}.ServeWithHandler(t, api.ShortenBatchHandler)
+
+			assert.Equal(t, test.wantCode, w.Code)
+			assert.Equal(t, "application/json", w.Header().Get("Content-Type"))
+			assert.Equal(t, test.wantCalls, calls)
+			if test.wantCode == http.StatusCreated {
+				var response []ShortenBatchItemResponse
+				require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+				assert.ElementsMatch(t, []ShortenBatchItemResponse{
+					{CorrelationID: "first", ShortURL: "http://localhost:8080/first123"},
+					{CorrelationID: "second", ShortURL: "http://localhost:8080/second12"},
+				}, response)
+			}
+		})
+	}
+}
+
+func TestServer_ShortenBatchHandlerStoresURLs(t *testing.T) {
+	repo := repository.NewMemoryRepository()
+	shorter := service.NewShorterService(repo, "http://localhost:8080")
+	api := NewShorterAPI(shorter)
+	request := httptest.NewRequest(http.MethodPost, "/api/shorten/batch", strings.NewReader(`[{"correlation_id":"first","original_url":"https://example.com/1"},{"correlation_id":"second","original_url":"https://example.com/2"}]`))
+	request.Header.Set("Content-Type", "application/json")
+	w := echotest.ContextConfig{Request: request}.ServeWithHandler(t, api.ShortenBatchHandler)
+	require.Equal(t, http.StatusCreated, w.Code)
+	var response []ShortenBatchItemResponse
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Len(t, response, 2)
+	want := map[string]string{"first": "https://example.com/1", "second": "https://example.com/2"}
+	for _, item := range response {
+		require.Contains(t, want, item.CorrelationID)
+		parsed, err := url.Parse(item.ShortURL)
+		require.NoError(t, err)
+		original, err := shorter.GetURL(strings.TrimPrefix(parsed.Path, "/"))
+		require.NoError(t, err)
+		assert.Equal(t, want[item.CorrelationID], original)
+		delete(want, item.CorrelationID)
+	}
+	assert.Empty(t, want)
 }

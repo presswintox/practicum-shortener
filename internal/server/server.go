@@ -1,6 +1,8 @@
 package server
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v5"
 	"github.com/labstack/echo/v5/middleware"
 	"go.uber.org/zap"
@@ -10,21 +12,28 @@ type ShorterAPI interface {
 	DoShortURLHandler(c *echo.Context) error
 	GetURLHandler(c *echo.Context) error
 	ShortenHandler(c *echo.Context) error
+	ShortenBatchHandler(c *echo.Context) error
+}
+
+type InfraService interface {
+	Ping() error
 }
 
 type Server struct {
-	echo       *echo.Echo
-	port       string
-	shorterAPI ShorterAPI
+	echo         *echo.Echo
+	port         string
+	shorterAPI   ShorterAPI
+	infraService InfraService
 }
 
-func NewServer(port string, shorterAPI ShorterAPI) *Server {
+func NewServer(port string, shorterAPI ShorterAPI, infraService InfraService) *Server {
 	e := echo.New()
 
 	s := &Server{
-		echo:       e,
-		port:       port,
-		shorterAPI: shorterAPI,
+		echo:         e,
+		port:         port,
+		shorterAPI:   shorterAPI,
+		infraService: infraService,
 	}
 	s.setupMiddlewares()
 	s.setupRouters()
@@ -36,11 +45,14 @@ func (s *Server) Start() error {
 }
 
 func (s *Server) setupRouters() {
+	s.echo.GET("/ping", s.pingHandler)
+
 	s.echo.GET("/:id", s.shorterAPI.GetURLHandler)
 	s.echo.POST("/", s.shorterAPI.DoShortURLHandler)
 
 	api := s.echo.Group("/api")
 	api.POST("/shorten", s.shorterAPI.ShortenHandler)
+	api.POST("/shorten/batch", s.shorterAPI.ShortenBatchHandler)
 }
 func (s *Server) setupMiddlewares() {
 	logger, _ := zap.NewProduction()
@@ -65,4 +77,16 @@ func (s *Server) setupMiddlewares() {
 
 	s.echo.Use(middleware.Gzip())
 	s.echo.Use(middleware.Decompress())
+}
+
+func (s *Server) pingHandler(c *echo.Context) error {
+	if s.infraService == nil {
+		return c.String(http.StatusInternalServerError, "database not configurated")
+	}
+	err := s.infraService.Ping()
+	if err != nil {
+		c.Logger().Error(err.Error())
+		return err
+	}
+	return c.String(http.StatusOK, "database is ready")
 }

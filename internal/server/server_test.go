@@ -18,13 +18,15 @@ import (
 
 func TestGzipCompression(t *testing.T) {
 	const shortURLAddr = "http://localhost:8080"
-
-	shorterService := service.NewShorterService(repository.NewMemoryRepository(), shortURLAddr)
-	api := handler.NewShorterAPI(shorterService)
-	s := NewServer(":0", api)
+	newServer := func() *Server {
+		shorterService := service.NewShorterService(repository.NewMemoryRepository(), shortURLAddr)
+		api := handler.NewShorterAPI(shorterService)
+		return NewServer(":0", api, nil)
+	}
 	requestBody := `{"url":"https://example.com"}`
 
 	t.Run("accepts gzip request", func(t *testing.T) {
+		s := newServer()
 		var compressed bytes.Buffer
 		zw := gzip.NewWriter(&compressed)
 		_, err := zw.Write([]byte(requestBody))
@@ -46,6 +48,7 @@ func TestGzipCompression(t *testing.T) {
 	})
 
 	t.Run("sends gzip response", func(t *testing.T) {
+		s := newServer()
 		req := httptest.NewRequest(http.MethodPost, "/api/shorten", bytes.NewBufferString(requestBody))
 		req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 		req.Header.Set(echo.HeaderAcceptEncoding, "gzip")
