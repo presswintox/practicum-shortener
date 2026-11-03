@@ -1,28 +1,28 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
-	"sync"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/presswintox/practicum-shortener/internal/config/db"
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/presswintox/practicum-shortener/migrations"
 )
 
 type PostgresRepository struct {
-	mu  sync.Mutex
-	db  *db.Database
+	db  *sql.DB
 	dsn string
 }
 
 func NewPostgresRepository(dsn string) (*PostgresRepository, error) {
-	postgres, err := db.NewPostgresDatabase(dsn)
+	postgres, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("error init postgres: %w", err)
 	}
@@ -32,10 +32,7 @@ func NewPostgresRepository(dsn string) (*PostgresRepository, error) {
 }
 
 func (r *PostgresRepository) Save(id, value string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	_, err := r.db.Conn.Exec("INSERT INTO short_links (original_url, short_url) VALUES ($1, $2)", value, id)
+	_, err := r.db.Exec("INSERT INTO short_links (original_url, short_url) VALUES ($1, $2)", value, id)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == pgerrcode.UniqueViolation {
@@ -50,14 +47,11 @@ func (r *PostgresRepository) Save(id, value string) error {
 }
 
 func (r *PostgresRepository) BatchSave(urls map[string]string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if len(urls) == 0 {
 		return nil
 	}
 
-	tx, err := r.db.Conn.Begin()
+	tx, err := r.db.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to begin batch save: %w", err)
 	}
@@ -80,10 +74,7 @@ func (r *PostgresRepository) BatchSave(urls map[string]string) error {
 }
 
 func (r *PostgresRepository) Get(id string) (string, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	row := r.db.Conn.QueryRow("SELECT id, original_url, short_url FROM short_links WHERE short_url = $1", id)
+	row := r.db.QueryRow("SELECT id, original_url, short_url FROM short_links WHERE short_url = $1", id)
 	record := URLRecord{}
 	err := row.Scan(&record.UUID, &record.OriginalURL, &record.ShortURL)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -101,7 +92,7 @@ func (r *PostgresRepository) Close() error {
 
 func (r *PostgresRepository) GetByOriginalURL(originalURL string) (string, error) {
 	var shortURL string
-	err := r.db.Conn.QueryRow("SELECT short_url FROM short_links WHERE original_url = $1", originalURL).Scan(&shortURL)
+	err := r.db.QueryRow("SELECT short_url FROM short_links WHERE original_url = $1", originalURL).Scan(&shortURL)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNotFound
 	}
@@ -112,13 +103,12 @@ func (r *PostgresRepository) GetByOriginalURL(originalURL string) (string, error
 }
 
 func (r *PostgresRepository) Ping() error {
-	return r.db.Ping()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	return r.db.PingContext(ctx)
 }
 
 func (r *PostgresRepository) Migrate() error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	source, err := iofs.New(migrations.Files, ".")
 	if err != nil {
 		return fmt.Errorf("failed to create migrations source: %w", err)

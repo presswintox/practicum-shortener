@@ -61,7 +61,7 @@ func (s *PostgresTestSuite) TestSaveAndGet() {
 				assert.NoError(t, repository.Close())
 			})
 			require.NoError(t, repository.Migrate())
-			require.NoError(t, repository.db.Ping())
+			require.NoError(t, repository.Ping())
 			require.NoError(t, repository.Save(test.id, test.value))
 
 			value, err := repository.Get(test.id)
@@ -96,7 +96,7 @@ func (s *PostgresTestSuite) TestBatchSave() {
 	for _, test := range tests {
 		s.Run(test.name, func() {
 			t := s.T()
-			_, err := repo.db.Conn.Exec("TRUNCATE TABLE short_links")
+			_, err := repo.db.Exec("TRUNCATE TABLE short_links")
 			require.NoError(t, err)
 			require.NoError(t, repo.Save("batch-existing", "https://example.com/existing"))
 
@@ -116,7 +116,7 @@ func (s *PostgresTestSuite) TestBatchSave() {
 			}
 
 			var count int
-			require.NoError(t, repo.db.Conn.QueryRow("SELECT COUNT(*) FROM short_links").Scan(&count))
+			require.NoError(t, repo.db.QueryRow("SELECT COUNT(*) FROM short_links").Scan(&count))
 			wantCount := 1
 			if !test.wantErr {
 				wantCount += len(test.urls)

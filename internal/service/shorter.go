@@ -97,30 +97,50 @@ func urlHash(longURL string) string {
 }
 
 func (s *ShorterService) ShortenBatch(urls map[string]string) (map[string]string, error) {
-	for range maxHashAttempts {
+	for attempt := range maxHashAttempts {
 		urlsToSave := make(map[string]string, len(urls))
-		result := make(map[string]string, len(urls))
-		for corrID, url := range urls {
-			hash := urlHash(url)
-			urlsToSave[hash] = url
+		shortByOriginal := make(map[string]string, len(urls))
+		newURLs := 0
+		for _, original := range urls {
+			if _, exists := shortByOriginal[original]; exists {
+				continue
+			}
+			hash, err := s.db.GetByOriginalURL(original)
+			switch {
+			case err == nil:
+			case errors.Is(err, repository.ErrNotFound):
+				hash = urlHash(fmt.Sprintf("%s:%d", original, attempt))
+				urlsToSave[hash] = original
+				newURLs++
+			default:
+				return nil, fmt.Errorf("failed to find existing short url: %w", err)
+			}
 			shortURL, err := s.shortURL(hash)
 			if err != nil {
 				return nil, fmt.Errorf("failed to generate short url: %w", err)
 			}
-			result[corrID] = shortURL
+			shortByOriginal[original] = shortURL
 		}
-		if len(urlsToSave) != len(urls) {
+		// Новая попытка перехэшировать
+		if len(urlsToSave) != newURLs {
 			continue
 		}
-		err := s.db.BatchSave(urlsToSave)
-		switch {
-		case err == nil:
-			return result, nil
-		case errors.Is(err, repository.ErrAlreadyExists):
-			continue
-		default:
-			return nil, fmt.Errorf("failed to save short url: %w", err)
+		if len(urlsToSave) > 0 {
+			err := s.db.BatchSave(urlsToSave)
+			switch {
+			case err == nil:
+			case errors.Is(err, repository.ErrAlreadyExists), errors.Is(err, repository.ErrOriginalURLExists):
+				// Новая попытка перехэшировать
+				continue
+			default:
+				return nil, fmt.Errorf("failed to save short url: %w", err)
+			}
 		}
+		result := make(map[string]string, len(urls))
+		for corrID, original := range urls {
+			result[corrID] = shortByOriginal[original]
+		}
+		return result, nil
 	}
 	return nil, fmt.Errorf("failed to save short url: %w", ErrHashCollision)
 }

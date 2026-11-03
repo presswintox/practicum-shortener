@@ -41,15 +41,15 @@ func TestShorterService_ShortenBatch(t *testing.T) {
 			urls := map[string]string{"first": "https://example.com/1", "second": "https://example.com/2", "same-url": "https://example.com/1"}
 			memory := repository.NewMemoryRepository()
 			calls := 0
-			repo := &batchRepositoryStub{batchSave: func(batch map[string]string) error {
+			repo := &batchRepositoryStub{ShorterRepository: memory, batchSave: func(batch map[string]string) error {
 				calls++
-				require.Len(t, batch, len(urls))
+				require.Len(t, batch, 2)
 				values := make([]string, 0, len(batch))
 				for hash, original := range batch {
 					assert.Len(t, hash, length)
 					values = append(values, original)
 				}
-				assert.ElementsMatch(t, []string{urls["first"], urls["second"], urls["same-url"]}, values)
+				assert.ElementsMatch(t, []string{urls["first"], urls["second"]}, values)
 				if calls <= test.failures {
 					return test.saveErr
 				}
@@ -65,6 +65,7 @@ func TestShorterService_ShortenBatch(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Len(t, result, len(urls))
+			assert.Equal(t, result["first"], result["same-url"])
 			for correlationID, original := range urls {
 				shortURL, err := url.Parse(result[correlationID])
 				require.NoError(t, err)
@@ -80,7 +81,7 @@ func TestShorterService_ShortenBatch(t *testing.T) {
 
 func TestShorterService_ShortenBatchInvalidBaseURL(t *testing.T) {
 	calls := 0
-	repo := &batchRepositoryStub{batchSave: func(map[string]string) error {
+	repo := &batchRepositoryStub{ShorterRepository: repository.NewMemoryRepository(), batchSave: func(map[string]string) error {
 		calls++
 		return nil
 	}}

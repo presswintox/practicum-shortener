@@ -279,6 +279,9 @@ func TestServer_ShortenBatchHandler(t *testing.T) {
 		{name: "service error", body: `[{"correlation_id":"first","original_url":"https://example.com/1"},{"correlation_id":"second","original_url":"https://example.com/2"}]`, serviceErr: errors.New("storage unavailable"), wantCode: http.StatusInternalServerError, wantCalls: 1},
 		{name: "invalid JSON", body: `[{"correlation_id":`, wantCode: http.StatusBadRequest},
 		{name: "wrong JSON shape", body: `{"correlation_id":"first"}`, wantCode: http.StatusBadRequest},
+		{name: "empty body", body: "", wantCode: http.StatusBadRequest},
+		{name: "empty batch", body: `[]`, wantCode: http.StatusBadRequest},
+		{name: "null batch", body: `null`, wantCode: http.StatusBadRequest},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -109,6 +109,11 @@ func (s *ShorterAPI) ShortenBatchHandler(c *echo.Context) error {
 		return echo.ErrBadRequest
 	}
 
+	if len(body) == 0 {
+		c.Logger().Info("empty body")
+		return echo.ErrBadRequest
+	}
+
 	items := map[string]string{}
 	for _, item := range body {
 		items[item.CorrelationID] = item.OriginalURL
@@ -119,7 +124,7 @@ func (s *ShorterAPI) ShortenBatchHandler(c *echo.Context) error {
 		c.Logger().Error(err.Error())
 		return echo.ErrInternalServerError
 	}
-	var res []ShortenBatchItemResponse
+	res := make([]ShortenBatchItemResponse, 0, len(shortUrls))
 	for id, shortURL := range shortUrls {
 		res = append(res, ShortenBatchItemResponse{
 			CorrelationID: id,
